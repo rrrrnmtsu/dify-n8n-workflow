@@ -1,0 +1,104 @@
+{
+  "name": "Simple Dify API Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://dify-api:5001/v1/chat-messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_DIFY_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "inputs",
+              "value": "{}"
+            },
+            {
+              "name": "query",
+              "value": "こんにちは！DifyとN8nの統合テストを実施しています。簡単な挨拶をお願いします。"
+            },
+            {
+              "name": "response_mode",
+              "value": "blocking"
+            },
+            {
+              "name": "user",
+              "value": "n8n-test-user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-dify-api",
+      "name": "Call Dify API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dify APIのレスポンスを処理\nconst response = $input.item.json;\n\nconsole.log('===== Dify API Response =====');\nconsole.log('Message ID:', response.message_id);\nconsole.log('Conversation ID:', response.conversation_id);\nconsole.log('Answer:', response.answer);\nconsole.log('============================');\n\n// 整形したデータを返す\nreturn {\n  json: {\n    success: true,\n    message_id: response.message_id,\n    conversation_id: response.conversation_id,\n    answer: response.answer,\n    metadata: response.metadata || {},\n    created_at: response.created_at,\n    tested_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Dify API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Dify API": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T00:00:00.000Z",
+  "versionId": "1"
+}

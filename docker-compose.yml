@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database (Dify用)
   postgres:
@@ -56,9 +54,20 @@ services:
       MODE: ${DIFY_MODE:-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
+      # Storage Configuration
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/app/api/storage}
+
+      # Plugin Configuration
+      PLUGIN_ENABLED: ${PLUGIN_ENABLED:-false}
+
       # API Configuration
       API_URL: ${DIFY_API_URL:-http://localhost:5001}
       CONSOLE_URL: ${DIFY_CONSOLE_URL:-http://localhost:3000}
+
+      # CORS Configuration
+      CONSOLE_CORS_ALLOW_ORIGINS: "*"
+      WEB_API_CORS_ALLOW_ORIGINS: "*"
 
     ports:
       - "${DIFY_API_PORT:-5001}:5001"
@@ -78,8 +87,11 @@ services:
     image: langgenius/dify-web:latest
     container_name: dify-web
     environment:
-      CONSOLE_API_URL: ${DIFY_API_URL:-http://localhost:5001}
-      APP_API_URL: ${DIFY_API_URL:-http://localhost:5001}
+      # API URLs (must use localhost for browser access)
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
+      NEXT_PUBLIC_API_PREFIX: http://localhost:5001
+      NEXT_PUBLIC_PUBLIC_API_PREFIX: http://localhost:5001
     ports:
       - "${DIFY_WEB_PORT:-3000}:3000"
     depends_on:

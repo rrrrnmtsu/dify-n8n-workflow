@@ -23,6 +23,9 @@ Dify（LLMアプリケーション開発プラットフォーム）とn8n（ワ�
 
 ## 🚀 クイックスタート
 
+**すぐに始めたい方は [QUICKSTART.md](QUICKSTART.md) をご覧ください！**
+5分で統合テストを開始できます。
+
 ### 前提条件
 
 - Docker & Docker Compose インストール済み
@@ -33,7 +36,7 @@ Dify（LLMアプリケーション開発プラットフォーム）とn8n（ワ�
 
 1. **リポジトリをクローン**
 ```bash
-git clone <repository-url>
+git clone https://github.com/rrrrnmtsu/dify-n8n-workflow.git
 cd dify-n8n-workflow
 ```
 
@@ -46,7 +49,7 @@ nano .env
 
 3. **Docker環境を起動**
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 4. **起動確認**
@@ -146,9 +149,18 @@ Dify (書き込み) → PostgreSQL ← n8n (読み取り/処理)
 
 詳細なドキュメントは[docs/](docs/)ディレクトリを参照してください。
 
-- [セットアップガイド](docs/setup.md)
-- [ワークフロー設計ガイド](docs/workflows.md)
-- [連携方法詳細](docs/integration.md)
+### スタートガイド
+- **[🚀 QUICKSTART.md](QUICKSTART.md)** - 5分で始める統合テスト
+- [セットアップガイド](docs/setup.md) - 環境構築の詳細手順
+- [統合テストガイド](docs/testing-guide.md) - 実践的なテスト手順
+
+### リファレンス
+- [連携パターン詳細](docs/integration.md) - 4つの統合パターンの詳細
+- サンプルワークフロー:
+  - [simple-webhook-test.json](examples/simple-webhook-test.json) - シンプルなWebhookテスト
+  - [simple-dify-api-test.json](examples/simple-dify-api-test.json) - Dify API呼び出しテスト
+  - [dify-webhook-receiver.json](examples/dify-webhook-receiver.json) - 高度なWebhook処理（DB保存、条件分岐）
+  - [dify-api-caller.json](examples/dify-api-caller.json) - バッチ処理とスケジュール実行
 
 ## 🛠 トラブルシューティング
 

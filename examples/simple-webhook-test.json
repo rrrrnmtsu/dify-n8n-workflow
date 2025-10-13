@@ -1,0 +1,53 @@
+{
+  "name": "Simple Dify Webhook Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dify-test",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "responseData": "{\n  \"status\": \"success\",\n  \"message\": \"Data received from Dify\",\n  \"timestamp\": \"{{$now}}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "dify-simple-test"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Difyから受信したデータをログに出力\nconst receivedData = $input.item.json;\n\nconsole.log('===== Dify Webhook Received =====');\nconsole.log('Full Data:', JSON.stringify(receivedData, null, 2));\nconsole.log('================================');\n\n// データを整形して返す\nreturn {\n  json: {\n    received_at: new Date().toISOString(),\n    source: 'dify',\n    data: receivedData,\n    processed: true\n  }\n};"
+      },
+      "id": "log-data",
+      "name": "Log Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Log Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T00:00:00.000Z",
+  "versionId": "1"
+}
