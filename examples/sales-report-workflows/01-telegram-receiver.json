@@ -1,0 +1,270 @@
+{
+  "name": "Sales Report - Telegram Receiver",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "sales-report-telegram",
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chat ID検証とファイル情報抽出\nconst allowedChatId = parseInt(process.env.TELEGRAM_CHAT_ID || '-1001234567890');\nconst message = $input.item.json.message;\nconst chatId = message.chat.id;\n\n// Chat ID検証\nif (chatId !== allowedChatId) {\n  console.log(`Unauthorized chat ID: ${chatId}`);\n  return null; // フローを停止\n}\n\n// ファイルの存在確認\nif (!message.document) {\n  console.log('No document found in message');\n  return null;\n}\n\nconst document = message.document;\nconst fileName = document.file_name;\nconst fileExtension = fileName.split('.').pop().toLowerCase();\n\n// ファイルタイプの検証\nconst allowedExtensions = ['xlsx', 'xls', 'pdf'];\nif (!allowedExtensions.includes(fileExtension)) {\n  console.log(`File type .${fileExtension} not allowed`);\n  return null;\n}\n\n// 日付の抽出（ファイル名から）\nconst dateMatch = fileName.match(/(\\d{4})[-._ ](\\d{1,2})[-._ ](\\d{1,2})/);\nlet reportDate = null;\nif (dateMatch) {\n  reportDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;\n} else {\n  // ファイル名に日付がない場合は今日の日付\n  reportDate = new Date().toISOString().split('T')[0];\n}\n\n// 返すデータ\nreturn {\n  json: {\n    telegram_message_id: message.message_id,\n    telegram_user_id: message.from.id,\n    telegram_username: message.from.username || message.from.first_name,\n    chat_id: chatId,\n    file_id: document.file_id,\n    file_name: fileName,\n    file_type: fileExtension,\n    file_size: document.file_size,\n    mime_type: document.mime_type,\n    report_date: reportDate,\n    received_at: new Date().toISOString(),\n    status: 'received'\n  }\n};"
+      },
+      "id": "validate-and-extract",
+      "name": "Validate & Extract Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "id": "get-file-path",
+      "name": "Get File Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Validate & Extract Info').item.json.file_name }}",
+        "filePath": "=/app/data/reports/{{ $('Validate & Extract Info').item.json.report_date }}_{{ $('Validate & Extract Info').item.json.file_name }}",
+        "options": {}
+      },
+      "id": "save-file",
+      "name": "Save File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "sales_reports",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_date": "={{ $('Validate & Extract Info').item.json.report_date }}",
+            "file_path": "=/app/data/reports/{{ $('Validate & Extract Info').item.json.report_date }}_{{ $('Validate & Extract Info').item.json.file_name }}",
+            "file_type": "={{ $('Validate & Extract Info').item.json.file_type }}",
+            "file_size": "={{ $('Validate & Extract Info').item.json.file_size }}",
+            "file_name": "={{ $('Validate & Extract Info').item.json.file_name }}",
+            "telegram_message_id": "={{ $('Validate & Extract Info').item.json.telegram_message_id }}",
+            "telegram_user_id": "={{ $('Validate & Extract Info').item.json.telegram_user_id }}",
+            "telegram_username": "={{ $('Validate & Extract Info').item.json.telegram_username }}",
+            "status": "received"
+          }
+        },
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "save-to-db",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Dify PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Validate & Extract Info').item.json.chat_id }}",
+        "text": "=✅ ファイルを受信しました\\n\\n📄 ファイル名: {{ $('Validate & Extract Info').item.json.file_name }}\\n📅 報告日: {{ $('Validate & Extract Info').item.json.report_date }}\\n💾 サイズ: {{ Math.round($('Validate & Extract Info').item.json.file_size / 1024) }} KB\\n⏳ 処理を開始します...",
+        "additionalFields": {}
+      },
+      "id": "send-confirmation",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1560, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://n8n:5678/webhook/process-sales-report",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "report_id",
+              "value": "={{ $('Save to PostgreSQL').item.json.id }}"
+            },
+            {
+              "name": "file_path",
+              "value": "=/app/data/reports/{{ $('Validate & Extract Info').item.json.report_date }}_{{ $('Validate & Extract Info').item.json.file_name }}"
+            },
+            {
+              "name": "file_type",
+              "value": "={{ $('Validate & Extract Info').item.json.file_type }}"
+            },
+            {
+              "name": "report_date",
+              "value": "={{ $('Validate & Extract Info').item.json.report_date }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-processor",
+      "name": "Trigger Processor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract Info": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Save File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save File": {
+      "main": [
+        [
+          {
+            "node": "Save to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Trigger Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "sales-report",
+      "name": "Sales Report"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T00:00:00.000Z",
+  "versionId": "1"
+}

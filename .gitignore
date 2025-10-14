@@ -51,6 +51,10 @@ storage/
 *.sql
 *.db
 
+# But allow schema files
+!database/*.sql
+!*_schema.sql
+
 # Secrets
 secrets/
 credentials/
