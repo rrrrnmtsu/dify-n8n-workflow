@@ -15,7 +15,6 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
       "position": [240, 300],
-      "webhookId": "sales-report-telegram",
       "credentials": {
         "telegramApi": {
           "id": "1",
