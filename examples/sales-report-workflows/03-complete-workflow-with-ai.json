@@ -1,0 +1,305 @@
+{
+  "name": "Sales Report Complete Workflow (AI Direct)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getUpdates",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"offset\": {{ $execution.customData.get('last_update_id') || 0 }},\n  \"timeout\": 25,\n  \"allowed_updates\": [\"message\"]\n}",
+        "options": {}
+      },
+      "id": "get-updates",
+      "name": "Get Telegram Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram getUpdatesのレスポンスを処理\nconst response = $input.first().json;\n\nif (!response.ok || !response.result || response.result.length === 0) {\n  return [];\n}\n\nconst updates = response.result;\nconst processedItems = [];\nconst allowedChatId = parseInt(process.env.TELEGRAM_CHAT_ID);\n\nfor (const update of updates) {\n  const message = update.message;\n  \n  if (message && message.document) {\n    const chatId = message.chat.id;\n    \n    if (chatId === allowedChatId) {\n      const document = message.document;\n      const fileName = document.file_name;\n      const fileExtension = fileName.split('.').pop().toLowerCase();\n      \n      if (['xlsx', 'xls', 'pdf'].includes(fileExtension)) {\n        // ファイル名から日付を抽出\n        const dateMatch = fileName.match(/(\\d{4})[-._ ]?(\\d{2})[-._ ]?(\\d{2})/);\n        let reportDate;\n        if (dateMatch) {\n          reportDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;\n        } else {\n          reportDate = new Date().toISOString().split('T')[0];\n        }\n        \n        processedItems.push({\n          json: {\n            update_id: update.update_id,\n            message_id: message.message_id,\n            chat_id: chatId,\n            chat_name: message.chat.title,\n            file_id: document.file_id,\n            file_name: fileName,\n            file_type: fileExtension,\n            file_size: document.file_size,\n            mime_type: document.mime_type,\n            from_user: message.from.first_name || message.from.username,\n            from_user_id: message.from.id,\n            from_username: message.from.username || '',\n            report_date: reportDate,\n            received_at: new Date(message.date * 1000).toISOString()\n          }\n        });\n      }\n    }\n  }\n}\n\n// offsetを更新\nif (updates.length > 0) {\n  const lastUpdateId = updates[updates.length - 1].update_id;\n  $execution.customData.set('last_update_id', lastUpdateId + 1);\n}\n\nreturn processedItems;"
+      },
+      "id": "process-updates",
+      "name": "Filter Sales Reports",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "id": "get-file-path",
+      "name": "Get File Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PDFからテキストを抽出（簡易版）\n// 実環境ではpdf-parseライブラリを使用するか、\n// Claude/OpenAI Vision APIにPDFを直接送信\n\nconst item = $input.first();\nconst binary = item.binary;\nconst fileData = $('Filter Sales Reports').item.json;\n\n// PDFの場合はバイナリデータをBase64に変換\nlet pdfBase64;\nif (binary && binary.data) {\n  pdfBase64 = binary.data.toString('base64');\n}\n\nreturn [{\n  json: {\n    ...fileData,\n    pdf_base64: pdfBase64,\n    // 簡易的なテキスト抽出（実際はOCRやPDFパーサーを使用）\n    pdf_text: \"PDF content extraction required\"\n  },\n  binary: binary\n}];"
+      },
+      "id": "extract-pdf-text",
+      "name": "Prepare PDF Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// Sales Report PDF Parser - AI Direct Call\n// ===========================================\n\nconst SYSTEM_PROMPT = `あなたは売上日報から情報を抽出する専門AIです。\n\n# 役割\nPDFまたはExcelファイルから売上データを正確に抽出し、構造化されたJSONで返します。\n\n# 抽出ルール\n\n1. **営業日の抽出**\n   - パターン: YYYY年MM月DD日、YYYYMMDD\n   - 見つからない場合: ファイル名から推測\n   - 形式: YYYY-MM-DD\n\n2. **来客数の抽出**\n   - キーワード: \"男性\", \"女性\", \"人数\"\n   - 合計は自動計算を確認\n\n3. **売上金額の抽出**\n   - キーワード: \"総売上\", \"営業合計\", \"フロア\", \"VIP\", \"PARTY\"\n   - カンマ区切りの数値を正規化\n   - ¥マークを除去\n\n4. **データ検証**\n   - 日付の妥当性チェック\n   - 金額の負数チェック\n   - 必須フィールドの存在確認\n\n# 出力形式\n\n必ずJSON形式のみで出力してください（マークダウンやコードブロックは不要）：\n\n{\n  \"business_date\": \"YYYY-MM-DD\",\n  \"male_count\": 数値,\n  \"female_count\": 数値,\n  \"total_customer_count\": 数値,\n  \"section_a_sales\": 数値,\n  \"section_b_sales\": 数値,\n  \"section_c_sales\": 数値,\n  \"other_sales\": 数値,\n  \"total_sales\": 数値,\n  \"confidence\": \"high|medium|low\",\n  \"notes\": \"抽出時の注意事項\"\n}\n\n# エラーハンドリング\n\n- データが見つからない場合: null を返す\n- 信頼度が低い場合: \"confidence\": \"low\" を設定\n- 異常値を検出した場合: notes に記載`;\n\n// 入力データ取得\nconst inputData = $input.first().json;\nconst fileName = inputData.file_name || 'unknown';\nconst fileType = inputData.file_type || 'pdf';\nconst pdfBase64 = inputData.pdf_base64;\n\n// ユーザープロンプト作成\nconst userPrompt = `以下のPDFファイルから売上データを抽出してください：\n\nファイル名: ${fileName}\nファイル種類: ${fileType}\n\nPDFの内容を解析して、構造化されたJSONを返してください。`;\n\n// API選択\nconst openaiKey = process.env.OPENAI_API_KEY;\nconst anthropicKey = process.env.ANTHROPIC_API_KEY;\n\nlet result;\nlet apiUsed;\n\nif (anthropicKey && pdfBase64) {\n  // Anthropic Claude Vision API使用（PDFを直接送信）\n  console.log('Using Anthropic Claude Vision API...');\n  \n  const response = await fetch('https://api.anthropic.com/v1/messages', {\n    method: 'POST',\n    headers: {\n      'x-api-key': anthropicKey,\n      'anthropic-version': '2023-06-01',\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      model: 'claude-3-5-sonnet-20241022',\n      max_tokens: 2048,\n      temperature: 0.1,\n      system: SYSTEM_PROMPT,\n      messages: [\n        {\n          role: 'user',\n          content: [\n            {\n              type: 'document',\n              source: {\n                type: 'base64',\n                media_type: 'application/pdf',\n                data: pdfBase64\n              }\n            },\n            {\n              type: 'text',\n              text: userPrompt\n            }\n          ]\n        }\n      ]\n    })\n  });\n\n  if (!response.ok) {\n    throw new Error(`Anthropic API Error: ${response.status} ${await response.text()}`);\n  }\n\n  const data = await response.json();\n  const content = data.content[0].text;\n\n  // JSON解析\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No JSON found in response');\n  }\n  result = JSON.parse(jsonMatch[0]);\n  apiUsed = 'anthropic-vision';\n\n} else if (openaiKey) {\n  // OpenAI APIフォールバック（テキストベース）\n  console.log('Using OpenAI API (text-based fallback)...');\n  \n  const response = await fetch('https://api.openai.com/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${openaiKey}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      model: 'gpt-4o',\n      messages: [\n        { role: 'system', content: SYSTEM_PROMPT },\n        { role: 'user', content: `${userPrompt}\\n\\n※PDFテキスト抽出が必要です` }\n      ],\n      temperature: 0.1,\n      response_format: { type: 'json_object' }\n    })\n  });\n\n  if (!response.ok) {\n    throw new Error(`OpenAI API Error: ${response.status} ${await response.text()}`);\n  }\n\n  const data = await response.json();\n  const content = data.choices[0].message.content;\n  result = JSON.parse(content);\n  apiUsed = 'openai';\n\n} else {\n  throw new Error('No API key found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in environment variables');\n}\n\n// データ検証\nif (result.male_count !== null && result.female_count !== null) {\n  const expectedTotal = (result.male_count || 0) + (result.female_count || 0);\n  if (result.total_customer_count !== expectedTotal) {\n    result.total_customer_count = expectedTotal;\n  }\n}\n\n// 出力\nreturn [{\n  json: {\n    ...inputData,\n    parsed_data: result,\n    api_used: apiUsed,\n    parsed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "parse-with-ai",
+      "name": "Parse with AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO sales_data (\n  sales_date,\n  male_count,\n  female_count,\n  section_a_sales,\n  section_b_sales,\n  section_c_sales,\n  other_sales,\n  total_sales,\n  raw_data,\n  source_file\n) VALUES (\n  '{{ $json.parsed_data.business_date }}',\n  {{ $json.parsed_data.male_count || 'NULL' }},\n  {{ $json.parsed_data.female_count || 'NULL' }},\n  {{ $json.parsed_data.section_a_sales || 'NULL' }},\n  {{ $json.parsed_data.section_b_sales || 'NULL' }},\n  {{ $json.parsed_data.section_c_sales || 'NULL' }},\n  {{ $json.parsed_data.other_sales || 'NULL' }},\n  {{ $json.parsed_data.total_sales || 'NULL' }},\n  '{{ JSON.stringify($json.parsed_data) }}',\n  '{{ $json.file_name }}'\n)\nON CONFLICT (sales_date) DO UPDATE SET\n  male_count = EXCLUDED.male_count,\n  female_count = EXCLUDED.female_count,\n  section_a_sales = EXCLUDED.section_a_sales,\n  section_b_sales = EXCLUDED.section_b_sales,\n  section_c_sales = EXCLUDED.section_c_sales,\n  other_sales = EXCLUDED.other_sales,\n  total_sales = EXCLUDED.total_sales,\n  raw_data = EXCLUDED.raw_data,\n  source_file = EXCLUDED.source_file,\n  updated_at = CURRENT_TIMESTAMP\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-to-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-sales-db",
+          "name": "PostgreSQL - Sales Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Filter Sales Reports').item.json.chat_id }}",
+        "text": "=✅ 処理が完了しました！\\n\\n📊 **売上データ**\\n📅 営業日: {{ $('Parse with AI').item.json.parsed_data.business_date }}\\n👥 来客数: {{ $('Parse with AI').item.json.parsed_data.total_customer_count }}名\\n　└ 男性: {{ $('Parse with AI').item.json.parsed_data.male_count }}名\\n　└ 女性: {{ $('Parse with AI').item.json.parsed_data.female_count }}名\\n💰 総売上: ¥{{ Number($('Parse with AI').item.json.parsed_data.total_sales).toLocaleString() }}\\n\\n🏢 **セクション別売上**\\n　• フロア: ¥{{ Number($('Parse with AI').item.json.parsed_data.section_a_sales || 0).toLocaleString() }}\\n　• VIP: ¥{{ Number($('Parse with AI').item.json.parsed_data.section_b_sales || 0).toLocaleString() }}\\n　• PARTY: ¥{{ Number($('Parse with AI').item.json.parsed_data.section_c_sales || 0).toLocaleString() }}\\n\\n💾 データベースに保存しました",
+        "additionalFields": {}
+      },
+      "id": "send-success",
+      "name": "Send Success Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cross-logbot",
+          "name": "Telegram Bot - cross_logbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO error_logs (\n  error_type,\n  error_message,\n  file_name,\n  telegram_message_id,\n  raw_error_data\n) VALUES (\n  'PROCESSING_ERROR',\n  '{{ $json.error.message }}',\n  '{{ $('Filter Sales Reports').item.json.file_name }}',\n  {{ $('Filter Sales Reports').item.json.message_id }},\n  '{{ JSON.stringify($json.error) }}'\n) RETURNING *;",
+        "options": {}
+      },
+      "id": "log-error",
+      "name": "Log Error to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 600],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-sales-db",
+          "name": "PostgreSQL - Sales Database"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Filter Sales Reports').item.json.chat_id }}",
+        "text": "=⚠️ ファイルの処理中にエラーが発生しました\\n\\n📄 ファイル: {{ $('Filter Sales Reports').item.json.file_name }}\\n❌ エラー: 売上データの抽出に失敗しました\\n\\n💡 ファイル形式を確認してください",
+        "additionalFields": {}
+      },
+      "id": "send-error",
+      "name": "Send Error Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 600],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cross-logbot",
+          "name": "Telegram Bot - cross_logbot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram Updates": {
+      "main": [
+        [
+          {
+            "node": "Filter Sales Reports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Sales Reports": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDF Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDF Data": {
+      "main": [
+        [
+          {
+            "node": "Parse with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse with AI": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Log Error to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Send Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error to DB": {
+      "main": [
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": {},
+  "tags": [
+    {
+      "name": "sales-report"
+    },
+    {
+      "name": "ai-powered"
+    },
+    {
+      "name": "production"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-21T00:00:00.000Z",
+  "versionId": "1"
+}

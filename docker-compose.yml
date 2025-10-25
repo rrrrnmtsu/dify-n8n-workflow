@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database (Dify用)
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: dify-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dify}
@@ -59,7 +59,17 @@ services:
       STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/app/api/storage}
 
       # Plugin Configuration
-      PLUGIN_ENABLED: ${PLUGIN_ENABLED:-false}
+      MARKETPLACE_ENABLED: "false"
+      ENABLE_CHECK_UPGRADABLE_PLUGIN_TASK: "false"
+      PLUGIN_DAEMON_URL: http://plugin-daemon:5002
+
+      # Vector Store (pgvector on shared Postgres)
+      VECTOR_STORE: ${VECTOR_STORE:-pgvector}
+      PGVECTOR_HOST: postgres
+      PGVECTOR_PORT: 5432
+      PGVECTOR_USER: ${POSTGRES_USER:-dify}
+      PGVECTOR_PASSWORD: ${POSTGRES_PASSWORD:-dify_password}
+      PGVECTOR_DATABASE: ${POSTGRES_DB:-dify}
 
       # API Configuration
       API_URL: ${DIFY_API_URL:-http://localhost:5001}
@@ -92,6 +102,9 @@ services:
       APP_API_URL: http://localhost:5001
       NEXT_PUBLIC_API_PREFIX: http://localhost:5001
       NEXT_PUBLIC_PUBLIC_API_PREFIX: http://localhost:5001
+
+      # Plugin Configuration (disable daemon)
+      MARKETPLACE_ENABLED: "false"
     ports:
       - "${DIFY_WEB_PORT:-3000}:3000"
     depends_on:
@@ -147,6 +160,28 @@ services:
     networks:
       - dify_network
       - workflow_network
+
+  plugin-daemon:
+    build:
+      context: ./plugin-daemon
+    container_name: plugin-daemon
+    networks:
+      - dify_network
+
+  # Excel Parser Service (n8n専用)
+  excel-parser:
+    build:
+      context: ./services/excel-parser
+    container_name: excel-parser
+    ports:
+      - "5002:5000"
+    networks:
+      - workflow_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 networks:
   dify_network:

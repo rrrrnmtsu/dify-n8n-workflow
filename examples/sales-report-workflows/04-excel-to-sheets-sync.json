@@ -1,0 +1,279 @@
+{
+  "name": "CROSS ROPPONGI Excel → Google Sheets 同期",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getUpdates",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"offset\": {{ $execution.customData.get('last_update_id') || 0 }},\n  \"timeout\": 25,\n  \"allowed_updates\": [\"message\"]\n}",
+        "options": {}
+      },
+      "id": "get-updates",
+      "name": "Get Telegram Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nif (!response.ok || !response.result || response.result.length === 0) {\n  return [];\n}\n\nconst updates = response.result;\nconst processedItems = [];\nconst allowedChatId = parseInt(process.env.TELEGRAM_CHAT_ID);\n\nfor (const update of updates) {\n  const message = update.message;\n  \n  if (message && message.document) {\n    const chatId = message.chat.id;\n    \n    if (chatId === allowedChatId) {\n      const document = message.document;\n      const fileName = document.file_name;\n      const fileExtension = fileName.split('.').pop().toLowerCase();\n      \n      // Excelファイルのみ処理（xlsx, xls）\n      if (['xlsx', 'xls'].includes(fileExtension)) {\n        // ファイル名パターン確認: yyyymmddCROSSROPPONGI.xxx\n        const dateMatch = fileName.match(/(\\d{4})(\\d{2})(\\d{2})CROSSROPPONGI/);\n        \n        if (dateMatch) {\n          const year = dateMatch[1];\n          const month = dateMatch[2];\n          const day = dateMatch[3];\n          const reportDate = `${year}-${month}-${day}`;\n          \n          processedItems.push({\n            json: {\n              update_id: update.update_id,\n              message_id: message.message_id,\n              chat_id: chatId,\n              chat_name: message.chat.title,\n              file_id: document.file_id,\n              file_name: fileName,\n              file_type: fileExtension,\n              file_size: document.file_size,\n              mime_type: document.mime_type,\n              from_user: message.from.first_name || message.from.username,\n              from_user_id: message.from.id,\n              from_username: message.from.username || '',\n              report_date: reportDate,\n              received_at: new Date(message.date * 1000).toISOString()\n            }\n          });\n        }\n      }\n    }\n  }\n}\n\n// offsetを更新\nif (updates.length > 0) {\n  const lastUpdateId = updates[updates.length - 1].update_id;\n  $execution.customData.set('last_update_id', lastUpdateId + 1);\n}\n\nreturn processedItems;"
+      },
+      "id": "filter-excel",
+      "name": "Filter Excel Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "id": "get-file-path",
+      "name": "Get File Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download Excel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "binaryPropertyName": "data",
+        "options": {
+          "readAsString": false,
+          "rawData": false
+        }
+      },
+      "id": "read-excel",
+      "name": "Read Excel File",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// parse_sales_excel.jsのコードをここに埋め込み\n// または外部スクリプトとして読み込み\n\nconst fileName = $('Filter Excel Files').item.json.file_name;\n\nconst dateMatch = fileName.match(/(\\d{4})(\\d{2})(\\d{2})/);\n\nif (!dateMatch) {\n  throw new Error(`ファイル名から日付を抽出できませんでした: ${fileName}`);\n}\n\nconst year = dateMatch[1];\nconst month = dateMatch[2];\nconst day = dateMatch[3];\nconst targetSheetName = String(parseInt(day));\n\nconsole.log(`処理対象: ${year}-${month}-${day}, シート名: \"${targetSheetName}\"`);\n\nconst XLSX = require('xlsx');\nconst binaryData = $input.first().binary.data;\nconst workbook = XLSX.read(binaryData);\n\nconst availableSheets = workbook.SheetNames;\nconsole.log('利用可能なシート:', availableSheets.join(', '));\n\nif (!availableSheets.includes(targetSheetName)) {\n  throw new Error(\n    `シート \"${targetSheetName}\" が見つかりません。` +\n    `利用可能なシート: ${availableSheets.join(', ')}`\n  );\n}\n\nconst worksheet = workbook.Sheets[targetSheetName];\n\nfunction getCellValue(cellAddress) {\n  const cell = worksheet[cellAddress];\n  if (!cell) return null;\n  return cell.v;\n}\n\nfunction getRangeValue(rangeAddress) {\n  const range = XLSX.utils.decode_range(rangeAddress);\n  const values = [];\n\n  for (let row = range.s.r; row <= range.e.r; row++) {\n    for (let col = range.s.c; col <= range.e.c; col++) {\n      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });\n      const value = getCellValue(cellAddress);\n      if (value !== null && value !== undefined && value !== '') {\n        values.push(value);\n      }\n    }\n  }\n\n  return values.length > 0 ? values[0] : null;\n}\n\nfunction getRangeArray(rangeAddress) {\n  const range = XLSX.utils.decode_range(rangeAddress);\n  const values = [];\n\n  for (let row = range.s.r; row <= range.e.r; row++) {\n    for (let col = range.s.c; col <= range.e.c; col++) {\n      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });\n      const value = getCellValue(cellAddress);\n      if (value !== null && value !== undefined && value !== '') {\n        values.push(value);\n      }\n    }\n  }\n\n  return values;\n}\n\nfunction parseCurrency(value) {\n  if (value === null || value === undefined) return null;\n  if (typeof value === 'number') return value;\n  if (typeof value === 'string') {\n    const cleaned = value.replace(/[¥,]/g, '');\n    const parsed = parseFloat(cleaned);\n    return isNaN(parsed) ? null : parsed;\n  }\n  return null;\n}\n\nconst extractedData = {\n  source_file: fileName,\n  sheet_name: targetSheetName,\n  extracted_at: new Date().toISOString(),\n  business_date: getRangeValue('P2:R2'),\n  total_customer_count: getCellValue('O2'),\n  male_count: getCellValue('T2'),\n  female_count: getCellValue('U2'),\n  total_sales: parseCurrency(getRangeValue('K64:M65')),\n  cash_shortage: parseCurrency(getRangeValue('O64:O65')),\n  section_sales: {\n    front: parseCurrency(getCellValue('F5')),\n    cloak_supplies: parseCurrency(getCellValue('F10')),\n    locker: parseCurrency(getCellValue('F14')),\n    bar1: parseCurrency(getCellValue('F15')),\n    bar2: parseCurrency(getCellValue('F16')),\n    bar3: parseCurrency(getCellValue('F17')),\n    bar4: parseCurrency(getCellValue('F18')),\n    vip1: parseCurrency(getCellValue('F32')),\n    vvip: parseCurrency(getCellValue('F33')),\n    party: parseCurrency(getCellValue('F48'))\n  },\n  receivables: {\n    uncollected: parseCurrency(getRangeValue('J61:K61')),\n    collected: parseCurrency(getRangeValue('Q61:R61'))\n  },\n  vip_details: {\n    vip_customers: [],\n    vvip_customers: []\n  }\n};\n\nconst vipNames = getRangeArray('AA5:AA27');\nconst vipAmounts = getRangeArray('AB5:AB27');\n\nfor (let i = 0; i < Math.min(vipNames.length, vipAmounts.length); i++) {\n  if (vipNames[i] && vipAmounts[i]) {\n    extractedData.vip_details.vip_customers.push({\n      name: vipNames[i],\n      amount: parseCurrency(vipAmounts[i])\n    });\n  }\n}\n\nconst vvipNames = getRangeArray('AA29:AA52');\nconst vvipAmounts = getRangeArray('AB29:AB52');\n\nfor (let i = 0; i < Math.min(vvipNames.length, vvipAmounts.length); i++) {\n  if (vvipNames[i] && vvipAmounts[i]) {\n    extractedData.vip_details.vvip_customers.push({\n      name: vvipNames[i],\n      amount: parseCurrency(vvipAmounts[i])\n    });\n  }\n}\n\nif (typeof extractedData.business_date === 'number') {\n  const date = XLSX.SSF.parse_date_code(extractedData.business_date);\n  extractedData.business_date = `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;\n}\n\nif (!extractedData.business_date) {\n  extractedData.business_date = `${year}-${month}-${day}`;\n}\n\nconsole.log('データ抽出完了:', JSON.stringify(extractedData, null, 2));\n\nreturn [{\n  json: extractedData\n}];"
+      },
+      "id": "parse-excel",
+      "name": "Parse Sales Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "{{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "日次売上",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "営業日": "={{ $json.business_date }}",
+            "総来客数": "={{ $json.total_customer_count }}",
+            "男性": "={{ $json.male_count }}",
+            "女性": "={{ $json.female_count }}",
+            "総売上": "={{ $json.total_sales }}",
+            "現金化不足": "={{ $json.cash_shortage }}",
+            "FRONT": "={{ $json.section_sales.front }}",
+            "CLOAK備品": "={{ $json.section_sales.cloak_supplies }}",
+            "LOCKER": "={{ $json.section_sales.locker }}",
+            "BAR1": "={{ $json.section_sales.bar1 }}",
+            "BAR2": "={{ $json.section_sales.bar2 }}",
+            "BAR3": "={{ $json.section_sales.bar3 }}",
+            "BAR4": "={{ $json.section_sales.bar4 }}",
+            "VIP1": "={{ $json.section_sales.vip1 }}",
+            "VVIP": "={{ $json.section_sales.vvip }}",
+            "PARTY": "={{ $json.section_sales.party }}",
+            "未収": "={{ $json.receivables.uncollected }}",
+            "未収回収": "={{ $json.receivables.collected }}"
+          },
+          "matchingColumns": ["営業日"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "sync-to-sheets",
+      "name": "Sync to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1780, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Filter Excel Files').item.json.chat_id }}",
+        "text": "=✅ Google Sheetsに同期完了！\\n\\n📊 **売上データ**\\n📅 営業日: {{ $('Parse Sales Data').item.json.business_date }}\\n👥 来客数: {{ $('Parse Sales Data').item.json.total_customer_count }}名\\n　└ 男性: {{ $('Parse Sales Data').item.json.male_count }}名\\n　└ 女性: {{ $('Parse Sales Data').item.json.female_count }}名\\n💰 総売上: ¥{{ Number($('Parse Sales Data').item.json.total_sales).toLocaleString() }}\\n\\n📋 Google Sheets: {{ $env.GOOGLE_SHEET_URL }}",
+        "additionalFields": {}
+      },
+      "id": "send-success",
+      "name": "Send Success Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cross-logbot",
+          "name": "Telegram Bot - cross_logbot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram Updates": {
+      "main": [
+        [
+          {
+            "node": "Filter Excel Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Excel Files": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Excel": {
+      "main": [
+        [
+          {
+            "node": "Read Excel File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Excel File": {
+      "main": [
+        [
+          {
+            "node": "Parse Sales Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sales Data": {
+      "main": [
+        [
+          {
+            "node": "Sync to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [
+    {
+      "name": "sales-report"
+    },
+    {
+      "name": "excel-sync"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-21T01:00:00.000Z",
+  "versionId": "1"
+}

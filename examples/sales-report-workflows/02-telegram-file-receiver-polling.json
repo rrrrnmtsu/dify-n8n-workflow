@@ -1,0 +1,194 @@
+{
+  "name": "Telegram File Receiver (Polling) - Complete",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/getUpdates",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"timeout\": 25,\n  \"allowed_updates\": [\"message\"]\n}",
+        "options": {}
+      },
+      "id": "get-updates",
+      "name": "Get Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram getUpdatesのレスポンスを処理\nconst response = $input.first().json;\n\nif (!response.ok || !response.result || response.result.length === 0) {\n  return [];\n}\n\nconst updates = response.result;\nconst processedItems = [];\nconst allowedChatId = -4796493812;\n\nfor (const update of updates) {\n  const message = update.message;\n  \n  if (message && message.document) {\n    const chatId = message.chat.id;\n    \n    if (chatId === allowedChatId) {\n      const document = message.document;\n      const fileName = document.file_name;\n      const fileExtension = fileName.split('.').pop().toLowerCase();\n      \n      if (['xlsx', 'xls', 'pdf'].includes(fileExtension)) {\n        // ファイル名から日付を抽出\n        const dateMatch = fileName.match(/(\\d{4})[-._ ]?(\\d{2})[-._ ]?(\\d{2})/);\n        let reportDate;\n        if (dateMatch) {\n          reportDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;\n        } else {\n          reportDate = new Date().toISOString().split('T')[0];\n        }\n        \n        processedItems.push({\n          json: {\n            update_id: update.update_id,\n            message_id: message.message_id,\n            chat_id: chatId,\n            chat_name: message.chat.title,\n            file_id: document.file_id,\n            file_name: fileName,\n            file_type: fileExtension,\n            file_size: document.file_size,\n            mime_type: document.mime_type,\n            from_user: message.from.first_name || message.from.username,\n            from_user_id: message.from.id,\n            from_username: message.from.username || '',\n            report_date: reportDate,\n            received_at: new Date(message.date * 1000).toISOString()\n          }\n        });\n      }\n    }\n  }\n}\n\n// offsetを更新（次回実行時に同じメッセージを取得しないように）\nif (updates.length > 0) {\n  const lastUpdateId = updates[updates.length - 1].update_id;\n  \n  // 次回のgetUpdatesリクエスト用にoffsetを保存\n  // n8nの静的データに保存（ワークフロー内で永続化）\n  $execution.customData.set('last_update_id', lastUpdateId + 1);\n}\n\nreturn processedItems;"
+      },
+      "id": "process-updates",
+      "name": "Process Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "id": "get-file-path",
+      "name": "Get File Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Process Updates').item.json.file_name }}",
+        "options": {}
+      },
+      "id": "save-file",
+      "name": "Save File to n8n",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Process Updates').item.json.chat_id }}",
+        "text": "=✅ ファイルを受信しました\\n\\n📄 ファイル名: {{ $('Process Updates').item.json.file_name }}\\n📅 報告日: {{ $('Process Updates').item.json.report_date }}\\n💾 サイズ: {{ Math.round($('Process Updates').item.json.file_size / 1024) }} KB\\n🕐 受信時刻: {{ $('Process Updates').item.json.received_at }}\\n\\n⏳ 処理を開始します...",
+        "additionalFields": {}
+      },
+      "id": "send-confirmation",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1560, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-cross-logbot",
+          "name": "Telegram Bot - cross_logbot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Updates": {
+      "main": [
+        [
+          {
+            "node": "Process Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Updates": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Save File to n8n",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save File to n8n": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "tags": [
+    {
+      "name": "sales-report"
+    },
+    {
+      "name": "telegram"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-20T01:50:00.000Z",
+  "versionId": "2"
+}

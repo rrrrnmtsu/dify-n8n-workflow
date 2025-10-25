@@ -86,7 +86,7 @@ status - 処理状況を確認
 latest - 最新の売上データを表示
 ```
 
-### 2.3 プライバシー設定
+### 2.3 プライバシー設定（重要）
 
 ```
 /setprivacy
@@ -95,6 +95,21 @@ latest - 最新の売上データを表示
 選択: `@your_company_sales_bot`
 
 選択: `Disable` （グループメッセージを全て受信）
+
+**⚠️ 重要:** プライバシー設定変更後は以下の手順が**必須**です：
+
+1. Botが既に参加しているグループから**一旦削除**
+2. Botを**再度グループに追加**
+
+この手順を実施しないと、設定変更が反映されません。
+
+**確認方法:**
+```bash
+curl -s "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getMe" | jq '.result.can_read_all_group_messages'
+```
+
+- `true`: 設定変更成功（全てのメッセージを受信可能）
+- `false`: 設定変更未反映（Bot削除→再追加が必要）
 
 ---
 
@@ -383,6 +398,27 @@ Botから以下のような通知が届きます:
 **症状:** ファイル送信してもBotが反応しない
 
 **解決策:**
+
+**1. Privacy Mode設定を確認:**
+```bash
+curl -s "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getMe" | jq '.result.can_read_all_group_messages'
+```
+
+- `false`の場合: Privacy Modeが有効（グループメッセージを受信できない）
+  - BotFatherで `/setprivacy` → Botを選択 → `Disable` を選択
+  - **Bot削除→再追加が必須**
+
+**2. getUpdatesでメッセージ確認:**
+```bash
+curl -s "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates" | jq '.'
+```
+
+- 空の`result: []`の場合:
+  - グループでメッセージ送信後、再度確認
+  - Botがグループメンバーか確認
+  - Webhook設定を確認（Pollingモードの場合は空にする）
+
+**3. その他の確認項目:**
 1. Botに管理者権限があるか確認
 2. n8nの「Download Files」設定を確認
 3. n8nワークフローがActiveになっているか確認

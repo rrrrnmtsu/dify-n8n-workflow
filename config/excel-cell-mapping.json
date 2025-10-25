@@ -1,0 +1,138 @@
+{
+  "description": "CROSS ROPPONGI 売上日報Excelファイルのセル位置定義",
+  "file_pattern": "yyyymmddCROSSROPPONGI.xlsx",
+  "sheet_name_pattern": "数値のみ（例: 18日の場合は '18'）",
+
+  "cell_mapping": {
+    "basic_info": {
+      "business_date": {
+        "range": "P2:R2",
+        "type": "date",
+        "description": "営業日"
+      },
+      "total_customer_count": {
+        "cell": "O2",
+        "type": "number",
+        "description": "総来客数"
+      },
+      "male_count": {
+        "cell": "T2",
+        "type": "number",
+        "description": "男性客数"
+      },
+      "female_count": {
+        "cell": "U2",
+        "type": "number",
+        "description": "女性客数"
+      }
+    },
+
+    "sales_summary": {
+      "total_sales": {
+        "range": "K64:M65",
+        "type": "currency",
+        "description": "総売上"
+      },
+      "cash_shortage": {
+        "range": "O64:O65",
+        "type": "currency",
+        "description": "現金化不足"
+      }
+    },
+
+    "section_sales": {
+      "front": {
+        "cell": "F5",
+        "type": "currency",
+        "description": "FRONT売上"
+      },
+      "cloak_supplies": {
+        "cell": "F10",
+        "type": "currency",
+        "description": "CLOAK/備品"
+      },
+      "locker": {
+        "cell": "F14",
+        "type": "currency",
+        "description": "LOCKER"
+      },
+      "bar1": {
+        "cell": "F15",
+        "type": "currency",
+        "description": "BAR1"
+      },
+      "bar2": {
+        "cell": "F16",
+        "type": "currency",
+        "description": "BAR2"
+      },
+      "bar3": {
+        "cell": "F17",
+        "type": "currency",
+        "description": "BAR3"
+      },
+      "bar4": {
+        "cell": "F18",
+        "type": "currency",
+        "description": "BAR4"
+      },
+      "vip1": {
+        "cell": "F32",
+        "type": "currency",
+        "description": "VIP1"
+      },
+      "vvip": {
+        "cell": "F33",
+        "type": "currency",
+        "description": "VVIP"
+      },
+      "party": {
+        "cell": "F48",
+        "type": "currency",
+        "description": "PARTY"
+      }
+    },
+
+    "receivables": {
+      "uncollected": {
+        "range": "J61:K61",
+        "type": "currency",
+        "description": "未収"
+      },
+      "collected": {
+        "range": "Q61:R61",
+        "type": "currency",
+        "description": "未収回収"
+      }
+    },
+
+    "vip_details": {
+      "vip_names": {
+        "range": "AA5:AA27",
+        "type": "array",
+        "description": "VIP顧客名リスト"
+      },
+      "vip_amounts": {
+        "range": "AB5:AB27",
+        "type": "currency_array",
+        "description": "VIP売上金額リスト"
+      },
+      "vvip_names": {
+        "range": "AA29:AA52",
+        "type": "array",
+        "description": "VVIP顧客名リスト"
+      },
+      "vvip_amounts": {
+        "range": "AB29:AB52",
+        "type": "currency_array",
+        "description": "VVIP売上金額リスト"
+      }
+    }
+  },
+
+  "notes": {
+    "sheet_selection": "ファイル名から日付を抽出し、日(DD)部分をシート名として使用",
+    "range_handling": "範囲セル(例: P2:R2)は結合セルまたは複数セルの値を連結",
+    "array_handling": "配列範囲(例: AA5:AA27)は空白セルを除外してリスト化"
+  }
+}
