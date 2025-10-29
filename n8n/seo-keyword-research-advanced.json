@@ -112,10 +112,11 @@
     {
       "parameters": {
         "authentication": "basicAuth",
+        "method": "POST",
         "url": "=https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "=[\n  {\n    \"location_code\": {{ $('Loop Over Items').item.json.Region === 'JP' ? 2392 : 2840 }},\n    \"language_code\": \"{{ $('Loop Over Items').item.json.Region === 'JP' ? 'ja' : 'en' }}\",\n    \"keywords\": [\n      \"{{ $('Loop Over Items').item.json.Keywords }}\"\n    ]\n  }\n]",
+        "jsonBody": "={{ [{ location_code: $('Loop Over Items').item.json.Region === 'JP' ? 2392 : 2840, language_code: $('Loop Over Items').item.json.Region === 'JP' ? 'ja' : 'en', keywords: [$('Loop Over Items').item.json.Keywords] }] }}",
         "options": {}
       },
       "id": "get-search-volume-pro",
@@ -187,7 +188,7 @@
               "id": "top-domains-assignment",
               "name": "top_domains",
               "type": "array",
-              "value": "={{ $json.organic_results?.slice(0, 10).map(r => { try { return new URL(r.url).hostname } catch { return '' } }).filter(d => d) || [] }}"
+              "value": "={{ ($json.organic_results || []).slice(0, 10).map(r => { const match = (r.url || '').match(/^https?:\\/\\/([^\\/]+)/); return match ? match[1] : ''; }).filter(d => d !== '') }}"
             }
           ]
         },
