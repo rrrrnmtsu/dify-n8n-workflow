@@ -1,0 +1,661 @@
+{
+  "name": "【特典】クリエイティブ画像自動生成システム",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18",
+          "mode": "list",
+          "cachedResultName": "Designs Marketing Creatives",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "Pending"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -1400,
+        20
+      ],
+      "id": "0939062e-03c3-436a-93f7-8d9a8d1fb407",
+      "name": "Product list",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1220,
+        220
+      ],
+      "id": "0a6be446-2e15-4c9b-9aa8-3a373569f664",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Product list').item.json['Product image'] }}",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -800,
+        20
+      ],
+      "id": "72018976-2f8a-4ba5-9302-a3c28e0c0f32",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "=row_{{ $('Product list').item.json.row_number }}_{{ $now.format(\"yyyyLLddHHiimm\") }}_{{ $itemIndex }}.png",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1dGNDtkaAyc8TpG51Fj7WAB_6s8SUSrhG",
+          "mode": "list",
+          "cachedResultName": "Product Result",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1dGNDtkaAyc8TpG51Fj7WAB_6s8SUSrhG"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        80,
+        20
+      ],
+      "id": "238a8ee0-40d6-4459-a2d6-3cea3fbbc8c7",
+      "name": "Google Drive2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18",
+          "mode": "list",
+          "cachedResultName": "Designs Marketing Creatives",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kKa_36_zoEg3sFqd-KFzUn6_z_Kn64WgmS33NTdrh18/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Success",
+            "row_number": "={{ $('Product list').item.json.row_number }}",
+            "Result1": "={{ $json.webContentLink[0] }}",
+            "Result2": "={{ $json.webContentLink[1] }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Post type",
+              "displayName": "Post type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Size",
+              "displayName": "Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Product image",
+              "displayName": "Product image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Brandname",
+              "displayName": "Brandname",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Product name",
+              "displayName": "Product name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Brand tone",
+              "displayName": "Brand tone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Colour theme",
+              "displayName": "Colour theme",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Background style",
+              "displayName": "Background style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Product placement",
+              "displayName": "Product placement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Lighting style",
+              "displayName": "Lighting style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Typography style",
+              "displayName": "Typography style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Composition guidelines",
+              "displayName": "Composition guidelines",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Branding guideline",
+              "displayName": "Branding guideline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Result1",
+              "displayName": "Result1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Result2",
+              "displayName": "Result2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        520,
+        20
+      ],
+      "id": "9746f99c-5106-490d-a10b-e0efc02c4c1d",
+      "name": "Update list1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Get entry from Google Sheet and prepare photo brief",
+        "height": 460,
+        "width": 860
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1700,
+        -80
+      ],
+      "id": "5dfecbf3-e644-4c76-9b9f-1a5eccb90447",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=以下が製品の詳細とアイデアです: \n\nPost Type : {{ $json['Post type'] }}\nBrand name : {{ $json.Brandname }}\nProduct name : {{ $json['Product name'] }}\nBrand tone : {{ $json['Brand tone'] }}\nColor theme : {{ $json['Colour theme'] }}\nBackground style : {{ $json['Background style'] }}\nLightning style : {{ $json['Lighting style'] }}\nProduct placement : {{ $json['Product placement'] }}\nTypography style : {{ $json['Typography style'] }}\nComposition guidelines : {{ $json['Composition guidelines'] }}\nContent Text : {{ $json['Content'] }}\nSize : {{ $json.Size }}",
+        "options": {
+          "systemMessage": "=あなたは高級品を専門とする、クールなプロダクトフォトグラファー兼スタイリストです。\n\nタスク：\n製品の詳細を、投稿タイプの目的を視覚的に明確にサポートするAI画像生成用プロンプトに変換してください。すべての要素は「プレミアム感」を全面に出す必要があります。\n\n出力要件\n1. シーン設定\n   - 背景（素材＋効果）\n   - 表面の質感（例：リブ入りシルク、火山岩）\n   - 1～2個の文脈に応じた小道具\n     - 例：\n       - Giveaway（プレゼント企画）：彫刻された当選者カード\n       - Testimonial（感想）：クラッシュドベルベットのサンキューノート\n\n2. モデルとスタイリング（該当する場合）\n   - 製品が際立つポーズ／ヘアスタイル\n   - ワードローブ（ニュートラルな高級感＋投稿内容に合った演出：\n     例：Giveaway用のパーティドレス）\n\n3. テクニカル仕様\n   - 照明シナリオ（例：「透けるカーテン越しに差し込む夕日のまだらな光」＝Before & After向け）\n   - カメラ位置＋レンズ（例：「ディテールを捉えるマクロレンズ」＝Limited-Time Promo向け）\n\n4. デザイン要素\n   - ネガティブスペースの活用\n   - タイポグラフィ：投稿目的に合わせたオーバーレイテキスト（5語以内、例：「Your Turn to Shine」＝Giveaway用）＋使用フォント\n   - ハッシュタグの組み込み（例：小道具に刻印）\n\n5. ムードキーワード（例：「緊急性、限定性」＝Limited-Time Promo向け）\n\n6. 投稿タイプごとの指示（Post-Type Command）\n   - 重要：投稿タイプに応じたビジュアルの指示を1つ必ず追加すること（例は下記）\n\nルール\n- 小道具：ジェンダーニュートラルな高級感（例：隕石のブックエンド、安っぽい紙吹雪はNG）\n- 同じコンセプトの繰り返し禁止\n- 影は製品の立体感を強調すること\n- 正確なサイズを記載（例：1080×1080px）\n- AIが反応しやすい単語を使用する：「glistening（きらめく）」「sculptural（彫刻のような）」「luminous（輝く）」\n- 投稿タイプの文脈がスタイリングに強く反映されていること：\n  - Giveaway（プレゼント）：祝祭感（例：浮かぶシャンパンの泡）\n  - Testimonial（感想）：親密さ（例：手書きのメモ）\n  - Limited-Time Promo（期間限定プロモ）：緊急性（例：砂時計の小道具）\n  - Before & After（ビフォーアフター）：変化の演出（例：スプリットフレームのライティング）\n  - Product Introduction（製品紹介）：純粋さ（例：白い空間に単独で配置された製品）"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -1180,
+        20
+      ],
+      "id": "4d7084bf-88c7-4148-a9ca-c41c5b4ba081",
+      "name": "Photographer AI Agent"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        20
+      ],
+      "id": "f27c89fa-bb3b-4b38-a405-8b1341c7683c",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "b64_json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -140,
+        20
+      ],
+      "id": "3bbe723c-b151-4c4d-b7e0-5fd840692b7d",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "webContentLink"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        300,
+        20
+      ],
+      "id": "b74a6915-2272-435b-9f70-3e2eb6653939",
+      "name": "Aggregate 2 Links"
+    },
+    {
+      "parameters": {
+        "content": "## Get product image and generate creatives",
+        "height": 460,
+        "width": 860,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -80
+      ],
+      "id": "2f62b217-4a03-4ce1-a417-229e890c890f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-1"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.output }}"
+            },
+            {
+              "name": "output_format",
+              "value": "png"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "n",
+              "value": "2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -580,
+        20
+      ],
+      "id": "f05ff8c4-be8b-45c6-ad33-4d7d0df3afd2",
+      "name": "Image Gen",
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Save to Google Drive and Update Google Sheet",
+        "height": 460,
+        "width": 720,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        60,
+        -80
+      ],
+      "id": "f515f76c-8867-4274-b880-51a786ff046f",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1660,
+        20
+      ],
+      "id": "f6a3348c-ba3a-40b1-97c4-7503f6b5fed6",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Product list": {
+      "main": [
+        [
+          {
+            "node": "Photographer AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Image Gen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate 2 Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photographer AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Google Drive2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate 2 Links": {
+      "main": [
+        [
+          {
+            "node": "Update list1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Gen": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Product list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Photographer AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4850ce4d-eb04-4c8c-848a-7914d8f07cef",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "3PTM7BCWZExRl62o",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

@@ -1,0 +1,467 @@
+{
+  "name": "【特典】GoogleドライブからInstagram、TikTok、YouTubeへアップロードする",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "list",
+          "value": "18m0i341QLQuyWuHv_FBdz8-r-QDtofYm",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/18m0i341QLQuyWuHv_FBdz8-r-QDtofYm",
+          "cachedResultName": "Influencersde"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "b53bbb63-935b-4bc4-879a-8f3d46373a23",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "position": [
+        220,
+        1140
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "",
+          "value": "={{ $json.id || $json.data[0].id }}"
+        },
+        "options": {}
+      },
+      "id": "b12c4a9e-9458-4f2c-8de8-ca15bc36b3f7",
+      "name": "Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        400,
+        1140
+      ],
+      "retryOnFail": true,
+      "typeVersion": 1,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 説明  \nこの自動化は、設定されたGoogleドライブのフォルダに動画をアップロードすることで、**自動的に説明文を生成し、InstagramとTikTokにアップロード**してくれる仕組みです。\n\n## 使用方法  \n1. upload-post.comでAPIトークンを生成し、「Upload to Tiktok」および「Upload to Instagram」ノードに追加する  \n2. Googleドライブのフォルダを設定する  \n3. OpenAIのプロンプトを、自分の用途に合わせてカスタマイズする  \n\n## 必要条件  \n- upload-post.com のアカウント  \n- Googleドライブのアカウント  \n- OpenAIのAPIキー",
+        "height": 260,
+        "width": 860
+      },
+      "id": "e167e868-c662-4740-b04a-9aed64606aa5",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -240,
+        820
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "59a9dd4f-37be-4610-9deb-292f8914b0c7",
+      "name": "Get Audio from Video",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        860,
+        1140
+      ],
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "typeVersion": 1,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      },
+      "notes": "Extract the audio from video for generate the description"
+    },
+    {
+      "parameters": {
+        "fileName": "={{ $json.originalFilename.replaceAll(\" \", \"_\") }}",
+        "options": {}
+      },
+      "id": "f6b3b4d4-9400-4c63-997a-55fef32f1119",
+      "name": "Read video from Google Drive",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "position": [
+        580,
+        1140
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "あなたは、魅力的なソーシャルメディア動画のタイトルを作成するエキスパートアシスタントです。\n",
+              "role": "system"
+            },
+            {
+              "content": "=私はこれからSNSに動画をアップロードしようとしています。以下は、Instagramで効果のあった説明文の例です：\n\n---\n\nTikTokの作成と投稿を自動化し、あなたのウェブサイトへのトラフィックを促進するAIツール「aaaaa」をチェックしよう。起業家やブランディングに最適です。\n#デジタルマーケティング #UGC #tiktok #ai \n\n---\n\n動画マーケティングの革命、aaaaaを体験しよう！\n.  \n.  \n.  \n#SNSマーケティング #ai #tiktok #グロースハック\n\n---\n\nたったワンクリックであなたのマーケティング戦略を変えるツール、InfluencersDeをお見逃しなく！  \n.  \n.  \n.  \n#UGC #ai #tiktok #デジタルマーケティング #ブランディング\n\n---\n\nこの動画で認識された音声に基づいて、Instagram投稿用の別のタイトル（説明文）を作成できますか？\n\nAudio: {{ $('Get Audio from Video').item.json.text }}\n\n重要：説明文のみを返答してください。それ以外は一切追加しないでください。\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fa11e561-891e-4b8f-a0e1-245ee4435a99",
+      "name": "Generate Description for Videos  in Tiktok and Instagram",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        1060,
+        1140
+      ],
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "typeVersion": 1.4,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      },
+      "notes": "Request to OpenAi for generate description with the audio extracted from the video"
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $('Read video from Google Drive').item.json.originalFilename.replaceAll(\" \", \"_\") }}",
+        "dataPropertyName": "datavideo"
+      },
+      "id": "f65bc0d3-dddb-48d4-985e-33427877d09a",
+      "name": "Read Video from Google Drive",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "position": [
+        1620,
+        920
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $('Read video from Google Drive').item.json.originalFilename.replaceAll(\" \", \"_\") }}",
+        "dataPropertyName": "datavideo"
+      },
+      "id": "b78212e3-d59f-41d4-be71-ddeefeeef6d8",
+      "name": "Read Video from Google Drive2",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "position": [
+        1620,
+        1220
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Generate Description for Videos  in Tiktok and Instagram').item.json.message.content.replaceAll(\"\\\"\", \"\") }}"
+            },
+            {
+              "name": "platform[]",
+              "value": "tiktok"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "video",
+              "inputDataFieldName": "datavideo"
+            },
+            {
+              "name": "user",
+              "value": "Add user generated in upload-post"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1498f2c0-0143-44dd-89ae-57c58fd1925b",
+      "name": "Upload Video and Description to Tiktok",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1880,
+        920
+      ],
+      "notesInFlow": true,
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "Generate in upload-post.com the token and add to the credentials in the header-> Authorization: Apikey (token here)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Generate Description for Videos  in Tiktok and Instagram').item.json.message.content.replaceAll(\"\\\"\", \"\") }}"
+            },
+            {
+              "name": "platform[]",
+              "value": "instagram"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "video",
+              "inputDataFieldName": "datavideo"
+            },
+            {
+              "name": "user",
+              "value": "Add user generated in upload-post"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e2736f36-b790-4c36-89a5-7ec987f4b208",
+      "name": "Upload Video and Description to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1880,
+        1220
+      ],
+      "notesInFlow": true,
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "Generate in upload-post.com the token and add to the credentials in the header-> Authorization: Apikey (token here)"
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $('Read video from Google Drive').item.json.originalFilename.replaceAll(\" \", \"_\") }}",
+        "dataPropertyName": "datavideo"
+      },
+      "id": "95f6c483-37b8-4768-a630-02f6cd947e5b",
+      "name": "Read Video from Google Drive3",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "position": [
+        1620,
+        1480
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Generate Description for Videos  in Tiktok and Instagram').item.json.message.content.replaceAll(\"\\\"\", \"\").substring(0, 70) }}\n"
+            },
+            {
+              "name": "platform[]",
+              "value": "youtube"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "video",
+              "inputDataFieldName": "datavideo"
+            },
+            {
+              "name": "user",
+              "value": "test2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2e69018c-a8ce-4ab1-9513-2510222a3317",
+      "name": "Upload Video and Description to Youtube",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1880,
+        1480
+      ],
+      "notesInFlow": true,
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "Generate in upload-post.com the token and add to the credentials in the header-> Authorization: Apikey (token here)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Read video from Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Audio from Video": {
+      "main": [
+        [
+          {
+            "node": "Generate Description for Videos  in Tiktok and Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Video from Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Upload Video and Description to Tiktok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read video from Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Get Audio from Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Video from Google Drive2": {
+      "main": [
+        [
+          {
+            "node": "Upload Video and Description to Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Video from Google Drive3": {
+      "main": [
+        [
+          {
+            "node": "Upload Video and Description to Youtube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Description for Videos  in Tiktok and Instagram": {
+      "main": [
+        [
+          {
+            "node": "Read Video from Google Drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Video from Google Drive2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Video from Google Drive3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f67bd298-ac48-49d5-9001-9de5a68402d4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "doL04VeRkIHJ84iV",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

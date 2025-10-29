@@ -1,0 +1,855 @@
+{
+  "name": "【特典】zoomデータ格納・議事録自動生成・要約メール自動生成",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $json.transcript_file }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zoomOAuth2Api",
+        "options": {}
+      },
+      "id": "0c83a912-4237-46de-b154-17407beb6c8c",
+      "name": "Zoom: Get transcript file",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1860,
+        220
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "0336357f-1547-47ff-897d-e1571aec7848",
+      "name": "Extract text from transcript file",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        -1700,
+        220
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70019192-02ef-4b0a-a747-3ca5f46aeeaa",
+              "name": "transcript",
+              "type": "string",
+              "value": "={{ $json.data.split('\\r\\n\\r\\n').slice(1).map(block => {\n    const lines = block.split('\\r\\n');\n    return lines.slice(2).join(' ');\n}).join('\\n') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4b8b5404-7bca-4e7d-a915-bbdfcb6a6507",
+      "name": "Format transcript text",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1540,
+        220
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ef149af8-7f9d-4e5a-8ccf-4a5f1e09eecc",
+              "name": "transcript_file",
+              "type": "string",
+              "value": "={{ $('Filter: Only Meetings with Recordings1').item.json.recording_files.find(f => f.file_type === 'TRANSCRIPT').download_url  }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e3a62722-3089-486f-bd87-d7abb17b127b",
+      "name": "Filter transcript file",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -2020,
+        220
+      ],
+      "typeVersion": 3.4,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1f8eb776-4778-43c7-8394-b7fb5f1c0171",
+              "name": "recording_file",
+              "value": "={{ $('Filter: Only Meetings with Recordings1').item.json.recording_files.find(f => f.file_type === 'MP4').download_url  }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "548cd89c-04df-40ae-8c57-6a56466a89ae",
+      "name": "Filter recording file",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -2020,
+        60
+      ],
+      "typeVersion": 3.4,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.recording_file }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zoomOAuth2Api",
+        "options": {}
+      },
+      "id": "1c1ff13d-1593-44ea-8fd6-42bfda46146b",
+      "name": "Zoom: Get Recording file",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1860,
+        60
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "name": "={{ $json.topic }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1DYb7Pd2Tyq9gspU2t3If_t_KZ1pq3VuL",
+          "mode": "list",
+          "cachedResultName": "zoom meeting - demo",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1DYb7Pd2Tyq9gspU2t3If_t_KZ1pq3VuL"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2180,
+        140
+      ],
+      "id": "78453466-fd87-4fb0-8215-a273618f38d3",
+      "name": "Create Folder",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.zoom.us/v2/past_meetings/{{ $('Filter: Only Meetings with Recordings1').item.json.id }}/participants",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zoomOAuth2Api",
+        "options": {}
+      },
+      "id": "b94f69dd-51c4-490a-b4dc-aaacc9aedfa2",
+      "name": "Zoom: Get participants data",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -920,
+        140
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "folderId": "={{ $('Create Folder').item.json.id }}",
+        "title": "={{ $('Filter: Only Meetings with Recordings1').item.json.topic }} - 文字起こし"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        220
+      ],
+      "id": "65ad51cb-e9a8-43bf-94d1-e3e6a4e68242",
+      "name": "Create Doc - Transcript",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "C0LOENRACc9xkNhW",
+          "name": "Tennki_Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Format transcript text').item.json.transcript }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1160,
+        220
+      ],
+      "id": "1e339429-5e88-48f4-b303-e4a20fa8b14a",
+      "name": "Update Doc - Transcript"
+    },
+    {
+      "parameters": {
+        "folderId": "={{ $('Create Folder').item.json.id }}",
+        "title": "={{ $('Filter: Only Meetings with Recordings1').item.json.topic }} - 議事録"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        140
+      ],
+      "id": "17c9c32b-7b29-458b-b5f0-8e93bc71cde1",
+      "name": "Create Doc - Meeting Minutes",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "C0LOENRACc9xkNhW",
+          "name": "Tennki_Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Meeting Minutes').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        140
+      ],
+      "id": "5aa87f7b-83b3-4a3f-9990-8137f86d4f00",
+      "name": "Update Doc - Meeting Minutes",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "C0LOENRACc9xkNhW",
+          "name": "Tennki_Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=あなたはプロの秘書です。以下の文字起こし、チャット履歴、会議情報から、正式な議事録ドキュメントを作成してください。\n\n会議日：{{ $('Filter: Only Meetings with Recordings1').item.json.start_time }}\n参加者：{{ $json.participants.map(p => p.name + ' - ' + p.user_email).join(', ') }}\n\n文字起こし：\n{{ $('Format transcript text').item.json.transcript }}\n\n以下の形式で議事録を作成してください：\n\n## [日付]の会議\n### 参加者：\n[メールアドレス付きの参加者一覧]\n\n### 会議の概要：\n[話し合われたトピックの簡潔な要約]\n\n### フォローアップタスク：\n- [タスク内容]（担当者：[氏名]）\n- ..."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "052c9f62-7436-4e4b-9726-9525050e2512",
+      "name": "Meeting Minutes",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        -740,
+        140
+      ],
+      "typeVersion": 1.8,
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Filter: Only Meetings with Recordings1').item.json.topic }} - 録画動画",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Create Folder').item.json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1700,
+        60
+      ],
+      "id": "bc5d48e0-1bee-4024-ba53-1f804538ede9",
+      "name": "Upload to Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.documentId }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        40,
+        140
+      ],
+      "id": "6888fc73-8818-4a5f-84f6-c99fb7155321",
+      "name": "Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "C0LOENRACc9xkNhW",
+          "name": "Tennki_Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=あなたはプロの秘書です。以下の文字起こし、チャット履歴、会議情報から、簡潔で正確な会議の要約メールを作成してください。\n\n会議日：{{ $('Filter: Only Meetings with Recordings1').item.json.start_time }}\n参加者：{{ $('Zoom: Get participants data').item.json.participants.map(p => p.name + ' - ' + p.user_email).join(', ') }}\n\n文字起こし：\n{{ $('Format transcript text').item.json.transcript }}\n\n以下の形式でメールを作成してください：\n\n\"Hi [Recipient Name]、\n\n本日は会議にご参加いただきありがとうございました。以下に会議の要点をまとめましたのでご確認ください：\n\nアクション項目：\n1.\n2.\n3.\n\nご返信をお待ちしております。\n\nよろしくお願いいたします。\n\n※件名は含めないでください。"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ec63ee3f-76b5-457f-829a-5aa817c000bc",
+      "name": "Email Recap",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        220,
+        140
+      ],
+      "typeVersion": 1.8,
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Filter: Only Meetings with Recordings1').item.json.topic }} - 議事録",
+        "message": "={{ $json.message.content }}",
+        "options": {
+          "sendTo": ""
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        140
+      ],
+      "id": "5ec83a21-dd10-46e1-b7dd-c21d7adac114",
+      "name": "Draft Email",
+      "webhookId": "c6434656-ac76-4b1d-aebf-2560cdcbb622",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "de097a4f-1f3e-4dc0-9ab6-139311ff4676",
+              "operator": {
+                "type": "dateTime",
+                "operation": "beforeOrEquals"
+              },
+              "leftValue": "={{ $json.start_time }}",
+              "rightValue": "={{$now.minus({ hours: 5 }).toISO()}}"
+            },
+            {
+              "id": "87e754f1-1946-44b3-aa00-65c6ae73724b",
+              "leftValue": "={{ $json.start_time }}",
+              "rightValue": "={{$now.minus({ hours: 10 }).toISO()}}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b3bb9045-59a5-461d-a29d-1aae4d9ceb5b",
+      "name": "Filter: Last 10 hours",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        -2780,
+        140
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {}
+      },
+      "id": "fc451793-7455-4405-94d2-22075f5eeb49",
+      "name": "Zoom: Get data of last meeting1",
+      "type": "n8n-nodes-base.zoom",
+      "position": [
+        -2960,
+        140
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.zoom.us/v2/meetings/{{ $json.id }}/recordings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zoomOAuth2Api",
+        "options": {}
+      },
+      "id": "8cf44264-8fd3-4c3a-b5de-e062aca1227b",
+      "name": "Zoom: Get transcripts data1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -2600,
+        140
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3120,
+        140
+      ],
+      "id": "239fb8ff-59f6-4ec4-8c67-f9776472ce6b",
+      "name": "Schedule Trigger2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9b8678a1-35d0-40aa-affc-705ab595fa3d",
+              "leftValue": "={{ $('Zoom: Get transcripts data1').item.json.recording_files.find(f => f.file_type === 'MP4').download_url  }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -2420,
+        140
+      ],
+      "id": "fa6e5699-e34c-4de4-ba22-fe820f6774a9",
+      "name": "Filter: Only Meetings with Recordings1"
+    },
+    {
+      "parameters": {
+        "content": "## ステップ1：録画済みのZoomミーティングを取得し、フィルタリングする",
+        "height": 380,
+        "width": 960
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3200,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "5d250b6f-aa82-45ba-8a0d-68861ebc25fb",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "content": "## ステップ2：Zoomの録画、議事録、チャット履歴をGoogleドライブにアップロード",
+        "height": 380,
+        "width": 1220,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2220,
+        0
+      ],
+      "id": "7a0f1816-84d9-435f-a93e-941fd7125b2e",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "content": "## ステップ3：議事録を生成・AI議事録作成・会議の要約メールを作成\n",
+        "height": 380,
+        "width": 1620,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        0
+      ],
+      "id": "3b5ea4d4-90c8-49c9-ad9e-832413351695",
+      "name": "Sticky Note13"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Zoom: Get transcript file": {
+      "main": [
+        [
+          {
+            "node": "Extract text from transcript file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract text from transcript file": {
+      "main": [
+        [
+          {
+            "node": "Format transcript text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format transcript text": {
+      "main": [
+        [
+          {
+            "node": "Create Doc - Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter transcript file": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get transcript file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter recording file": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get Recording file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom: Get Recording file": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folder": {
+      "main": [
+        [
+          {
+            "node": "Filter transcript file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter recording file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom: Get participants data": {
+      "main": [
+        [
+          {
+            "node": "Meeting Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Doc - Transcript": {
+      "main": [
+        [
+          {
+            "node": "Update Doc - Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Doc - Transcript": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get participants data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Doc - Meeting Minutes": {
+      "main": [
+        [
+          {
+            "node": "Update Doc - Meeting Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Doc - Meeting Minutes": {
+      "main": [
+        [
+          {
+            "node": "Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Minutes": {
+      "main": [
+        [
+          {
+            "node": "Create Doc - Meeting Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Docs": {
+      "main": [
+        [
+          {
+            "node": "Email Recap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Recap": {
+      "main": [
+        [
+          {
+            "node": "Draft Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Last 10 hours": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get transcripts data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom: Get data of last meeting1": {
+      "main": [
+        [
+          {
+            "node": "Filter: Last 10 hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom: Get transcripts data1": {
+      "main": [
+        [
+          {
+            "node": "Filter: Only Meetings with Recordings1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get data of last meeting1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Only Meetings with Recordings1": {
+      "main": [
+        [
+          {
+            "node": "Create Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "897763e5-9e01-490f-af03-c19b6a85532a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "340EHMvvXd8pYOzd",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

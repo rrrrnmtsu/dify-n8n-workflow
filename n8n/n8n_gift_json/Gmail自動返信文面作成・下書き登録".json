@@ -1,0 +1,351 @@
+{
+  "name": "【特典】Gmail自動返信文面作成・下書き登録",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "-from:me"
+        },
+        "options": {}
+      },
+      "id": "ffe07874-a45a-4cd0-9241-d13d87f16077",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "position": [
+        -440,
+        -20
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "53849246-ad32-4845-9976-9f9688f5a6f2",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.needsReply }}",
+              "rightValue": "true"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5bf2b457-76ba-42a0-9d3d-e7e69669a3e2",
+      "name": "If Needs Reply",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        140,
+        -20
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsonSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"needsReply\": {\n      \"type\": \"boolean\"\n      }\n  },\n  \"required\": [\"needsReply\"]\n}\n"
+      },
+      "id": "7bbe2998-fadb-4ce6-9cc6-38dfd6f00571",
+      "name": "JSON Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        0,
+        140
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "responseFormat": "json_object",
+          "temperature": 0
+        }
+      },
+      "id": "5828f366-9456-4c7f-9500-70227cfda346",
+      "name": "OpenAI Chat",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -200,
+        160
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 受信時に開始\n",
+        "height": 394.42512272977456,
+        "width": 304.10628068244364
+      },
+      "id": "c5abc906-0eae-4f46-a35b-d60ca8d79e3a",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -580,
+        -120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 返信　要/不要を判断\n",
+        "height": 397,
+        "width": 556
+      },
+      "id": "964aa135-a348-4c88-9e73-ea802abe11a3",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -220,
+        -120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 返信文面作成",
+        "height": 400.08454375343996,
+        "width": 333.19082443588354
+      },
+      "id": "3b224ea0-4d8c-43cd-87d2-8f43904dfe36",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        360,
+        -120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 下書き登録",
+        "height": 395,
+        "width": 326
+      },
+      "id": "9bdacdb6-c08a-493c-98a0-97c14e097389",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        -120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "options": {}
+      },
+      "id": "83b4bb58-a7af-412a-a9e0-97d1dffb2bf1",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        380,
+        100
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Gmail Trigger').item.json.headers.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.text.replace(/\\n/g, \"<br />\\n\") }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.headers.from }}"
+        }
+      },
+      "id": "57f32963-18aa-4693-b821-5fcb77d2d282",
+      "name": "Gmail - Create Draft",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        800,
+        -20
+      ],
+      "typeVersion": 2.1,
+      "webhookId": "4262530a-e7d7-4f2f-be14-cb48a982de3e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "prompt": "=Subject: {{ $json.subject }}\nMessage:\n{{ $json.textAsHtml }} ",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "あなたのタスクは、メッセージが返信を必要とするかどうかを評価することです。返信が必要な場合はJSON形式で`true`を、そうでない場合は`false`を返してください。マーケティングメールは返信を必要としません。"
+            }
+          ]
+        }
+      },
+      "id": "26b459e9-d3e6-4f28-a2c4-7b2a21314ff0",
+      "name": "Assess if message needs a reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        -200,
+        -20
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Subject: {{ $('Gmail Trigger').item.json.subject }}\nMessage: {{ $('Gmail Trigger').item.json.textAsHtml }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "あなたは有能な個人アシスタントであり、私の代わりに受信メールへの返信を作成することがあなたのタスクです。メールからテキストが提供された場合は常に、それに対する適切な返信案を返してください。それ以外のものは含めないでください。返信はプロフェッショナルなメール設定に適しており、トピックを明確で構造化された詳細な方法で扱うようにしてください。架空の情報をでっち上げないでください。  \n\n詳細な指示： \n- 簡潔でビジネスカジュアルなトーンを保ってください。\n- 「お世話になっております。」から始めてください。\n- はい/いいえの質問に返信する際は、2つの返信を作成してください。1つは肯定的な返信、もう1つは否定的な返信で、「 - - - - - - - OR - - - - - - - 」で区切ってください。\n- 答えがわからない場合は、「[YOUR_ANSWER_HERE]」のようなプレースホルダーを使用できます。\n- 特殊な書式設定は使用せず、プレーンテキストのみを使用してください。\n- 受信メールと同じ言語で返信してください。"
+            }
+          ]
+        }
+      },
+      "id": "943fbfad-a590-41a7-8695-3e955f280811",
+      "name": "Generate email reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        400,
+        -60
+      ],
+      "typeVersion": 1.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "JSON Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Assess if message needs a reply",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Assess if message needs a reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Assess if message needs a reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Needs Reply": {
+      "main": [
+        [
+          {
+            "node": "Generate email reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate email reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate email reply": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Create Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assess if message needs a reply": {
+      "main": [
+        [
+          {
+            "node": "If Needs Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "833186f2-3ba7-4d9e-b9bd-73a300ffa74f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "OYdMO7Yj5IKCb3JT",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

@@ -1,0 +1,505 @@
+{
+  "name": "【特典】SEO記事リライト",
+  "nodes": [
+    {
+      "parameters": {
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "id": "77423b02-1b69-412f-98a1-1b162dfbb880",
+      "name": "Split Out",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        760,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "text"
+            }
+          ]
+        },
+        "options": {
+          "mergeLists": false
+        }
+      },
+      "id": "ab969cdb-7a86-4eab-9471-61948552fcde",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        900,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "id": "98f3b569-650f-4a6f-966c-aace8068a76c",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        660,
+        440
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E",
+          "mode": "list",
+          "cachedResultName": "SEO Campaign",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "SEO Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "SEO Article"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a044281d-a8c4-4095-a328-a55381d4fc20",
+      "name": "Get Article",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        180,
+        60
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zMcMz0yEK6JSXl4Q",
+          "name": "self-growing QA bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "['List of keywords']",
+        "options": {}
+      },
+      "id": "e4e79e0e-b7c5-474d-a530-e880d0aa55b7",
+      "name": "Split Out2",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E",
+          "mode": "list",
+          "cachedResultName": "SEO Campaign",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 213818299,
+          "mode": "list",
+          "cachedResultName": "SEO Keywords Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit#gid=213818299"
+        },
+        "options": {}
+      },
+      "id": "130dcb23-5f0e-45b2-a747-9dae1edc3f62",
+      "name": "Read SEO Keywords",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        180,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "['[\\'List of keywords\\']']"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1869ef61-aeca-4583-aa3e-ae38e6afb03d",
+      "name": "Aggregate2",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E",
+          "mode": "list",
+          "cachedResultName": "SEO Campaign",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "SEO Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "SEO Article": "={{ $json.output }}",
+            "Campaign Description": "={{ $('Get Article').item.json['Campaign Description'] }}"
+          },
+          "matchingColumns": [
+            "Campaign Description"
+          ],
+          "schema": [
+            {
+              "id": "Campaign Description",
+              "displayName": "Campaign Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Target Audience",
+              "displayName": "Target Audience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEO Article",
+              "displayName": "SEO Article",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7717085c-01d4-4464-9485-54c3e9396b39",
+      "name": "Update Article",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        960,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "951b95b1-69ca-4007-820e-427eade173ed",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        40,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.exa.ai/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.message.content }}\",\n  \"type\": \"neural\",\n  \"useAutoprompt\": true,\n  \"contents\": {\n    \"text\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "788863d2-fa72-4e4f-afa3-c1e831183c87",
+      "name": "Exa Get Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Article Content:\n{{ $('Aggregate').item.json.text.toJsonString() }}\nTarget Audience:\n{{ $('Get Article').item.json['Target Audience'] }}",
+        "options": {
+          "systemMessage": "=# システムロール  \nあなたは、特定のターゲットオーディエンス向けに、受け取った記事をSEOに非常に適したニュース記事へと変換することを専門とするSEO記事のコピーライターです。\n\n# SEOキーワード  \n{{ $json['[\\'List of keywords\\']'] }}"
+        }
+      },
+      "id": "f2e695d3-b7b8-4351-9e45-1dca404364c7",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=あなたは、ユーザーの質問に基づいて検索クエリを生成する有能なアシスタントです。生成する検索クエリは1つだけにしてください。\n本日の日時：{{ $now }}\n出力はテキストのみで、「\"\"」や「''」などの引用符は使わないでください。",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json['Campaign Description'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "250b9a8a-9c25-43d8-bcbb-b6572875b1be",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        320,
+        60
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# SEOリライト記事",
+        "height": 585.2195443010831,
+        "width": 1124.8469391752762
+      },
+      "id": "73bb861d-fd6c-427a-b2e5-a0b9a49b6155",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Read SEO Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Article": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read SEO Keywords": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exa Get Content": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Update Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Exa Get Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c739603e-bca0-4c7f-b6c7-73e08f6f70db",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "fKgIXRwNhPBrW1a9",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

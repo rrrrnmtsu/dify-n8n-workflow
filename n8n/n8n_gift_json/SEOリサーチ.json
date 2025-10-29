@@ -1,0 +1,359 @@
+{
+  "name": "【特典】SEO キーワードリサーチ",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://google.com/complete/search?output=toolbar&gl=US&q={{ $json.Keywords }}",
+        "options": {}
+      },
+      "id": "3d3fe1cf-d168-46e2-88ec-1c37cd9dc192",
+      "name": "Autogenerate Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        520,
+        160
+      ],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b8183489-2e92-4c00-86f7-68832504bb8b",
+      "name": "Format Keywords",
+      "type": "n8n-nodes-base.xml",
+      "position": [
+        700,
+        160
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "toplevel.CompleteSuggestion",
+        "options": {}
+      },
+      "id": "4e44a64e-56dc-4f86-b991-7e2fc086283a",
+      "name": "Split Out1",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        840,
+        160
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "id": "21cc252e-612e-4810-8b13-b86a6566bc58",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        380,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E",
+          "mode": "list",
+          "cachedResultName": "SEO Campaign",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 213818299,
+          "mode": "list",
+          "cachedResultName": "SEO Keywords Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit#gid=213818299"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "List of keywords"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c8c3eeb9-66d1-41eb-91a9-92517da37759",
+      "name": "Read Keywords",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb95058f-0c20-4249-8a45-7b935fde1874",
+              "name": "Keywords",
+              "type": "array",
+              "value": "={{ $json.suggestion.data }}"
+            }
+          ]
+        },
+        "options": {
+          "ignoreConversionErrors": true
+        }
+      },
+      "id": "564e513a-b5d7-4de6-b58f-241e66b1a24b",
+      "name": "Clean Keywords",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        980,
+        160
+      ],
+      "typeVersion": 3.3
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Keywords"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "40dde742-c1fc-4a88-967c-bb741f48bd12",
+      "name": "Aggregate1",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        1120,
+        160
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E",
+          "mode": "list",
+          "cachedResultName": "SEO Campaign",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 213818299,
+          "mode": "list",
+          "cachedResultName": "SEO Keywords Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JOuc5Cihk-IWznqCMdoDUwEskkO8NuLHhkgCCcDA20E/edit#gid=213818299"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Limit').item.json.row_number }}",
+            "List of keywords": "={{ $json.Keywords.join() }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Keywords",
+              "displayName": "Keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "List of keywords",
+              "displayName": "List of keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6119aa1-86c7-4b4c-844a-0798fc965077",
+      "name": "Google Sheets2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1260,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# SEO キーワードリサーチ\n",
+        "height": 255,
+        "width": 1549,
+        "color": 5
+      },
+      "id": "befbfd73-d86c-461e-a834-b523e2ebb240",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        60,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "2b538dd3-b30c-4551-95f3-0d3487837e38",
+      "name": "Schedule Trigger1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Autogenerate Keywords": {
+      "main": [
+        [
+          {
+            "node": "Format Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Keywords": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Clean Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Autogenerate Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Keywords": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Keywords": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Read Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6d00d83a-9e69-4fc6-b2a2-eacfe3b78980",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "bghctMj9zkXMpkxc",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

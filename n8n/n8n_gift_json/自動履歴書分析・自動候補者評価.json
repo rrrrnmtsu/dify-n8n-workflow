@@ -1,0 +1,659 @@
+{
+  "name": "【特典】自動履歴書分析・自動候補者評価",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Send CV",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "placeholder": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "Email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "CV",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89d736de-4164-4d4d-afdd-b7facb59af16",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [
+        400,
+        340
+      ],
+      "webhookId": "2a87705d-8ba1-41f1-80ef-85f364ce253e",
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "CV",
+        "options": {}
+      },
+      "id": "c1f75eb8-17ce-4d9d-9806-f740dbecb0b7",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        760,
+        340
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Educational qualification",
+              "description": "あなたの学歴を要約してください。高校と大学の学業に焦点を当て、最大100語でまとめてください。該当する場合は、成績も記載してください。",
+              "required": true
+            },
+            {
+              "name": "Job History",
+              "description": "職務経歴の概要を記載してください。特に直近の職歴に重点を置き、100語以内で簡潔にまとめてください。",
+              "required": true
+            },
+            {
+              "name": "Skills",
+              "description": "候補者の技術スキルを抽出してください。習熟しているソフトウェアやフレームワークを箇条書きで記載してください。",
+              "required": true
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "あなたは高度な情報抽出アルゴリズムです。与えられたテキストから必要な情報のみを抽出してください。指定された属性の値が不明な場合は、その値を無理に記載せず、省略して構いません。"
+        }
+      },
+      "id": "9f6eda6f-099a-4297-aa67-95580727167a",
+      "name": "Qualifications",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "position": [
+        1080,
+        440
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {
+          "summarizationMethodAndPrompts": {
+            "values": {
+              "combineMapPrompt": "=---\n以下を簡潔に要約してください。\n\n都市: {{ $json.output.city }}\n生年月日: {{ $json.output.birthdate }}\n学歴: {{ $json.output[\"Educational qualification\"] }}\n職務経歴: {{ $json.output[\"Job History\"] }}\nスキル: {{ $json.output.Skills }}\n\n100語以内で、簡潔かつ会話調で記述してください。",
+              "prompt": "=---\n以下を簡潔に要約してください。\n\n都市: {{ $json.output.city }}\n生年月日: {{ $json.output.birthdate }}\n学歴: {{ $json.output[\"Educational qualification\"] }}\n職務経歴: {{ $json.output[\"Job History\"] }}\nスキル: {{ $json.output.Skills }}\n\n100語以内で、簡潔かつ会話調で記述してください。"
+            }
+          }
+        }
+      },
+      "id": "2d975b9c-aef3-4ce4-bf47-463a5abccffb",
+      "name": "Summarization Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainSummarization",
+      "position": [
+        1820,
+        320
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "badb776f-0221-46f4-871c-36b3dd0a4172",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        1580,
+        320
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a3d049b0-5a70-4e7b-a6f2-81447da5282a",
+              "name": "profile_wanted",
+              "type": "string",
+              "value": "私たちはシステム開発企業で、PHP、Python、JavaScriptが使えるフルスタックWeb開発者を探しています。業界経験があり、東京都に住んでいる方を希望しています。"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bd2c7983-bb6a-4c2c-bf93-63d501a369db",
+      "name": "Profile Wanted",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        2220,
+        320
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1ssz5RvN1Hr20Q31pnYnbjCLu1MGBvoLttBAjXunMRQE",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ssz5RvN1Hr20Q31pnYnbjCLu1MGBvoLttBAjXunMRQE/edit?usp=drivesdk",
+          "cachedResultName": "Ricerca WebDev"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ssz5RvN1Hr20Q31pnYnbjCLu1MGBvoLttBAjXunMRQE/edit#gid=0",
+          "cachedResultName": "Foglio1"
+        },
+        "columns": {
+          "value": {
+            "CITY": "={{ $('Merge').item.json.output.city }}",
+            "DATA": "={{ $now.format('dd/LL/yyyy') }}",
+            "NAME": "={{ $('On form submission').item.json.Nome }}",
+            "VOTE": "={{ $json.output.vote }}",
+            "EMAIL": "={{ $('On form submission').item.json.Email }}",
+            "SKILLS": "={{ $('Merge').item.json.output.Skills }}",
+            "TELEFONO": "={{ $('Merge').item.json.output.telephone }}",
+            "SUMMARIZE": "={{ $('Summarization Chain').item.json.response.text }}",
+            "EDUCATIONAL": "={{ $('Merge').item.json.output[\"Educational qualification\"] }}",
+            "JOB HISTORY": "={{ $('Merge').item.json.output[\"Job History\"] }}",
+            "DATA NASCITA": "={{ $('Merge').item.json.output.birthdate }}",
+            "CONSIDERATION": "={{ $json.output.consideration }}"
+          },
+          "schema": [
+            {
+              "id": "DATA",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "DATA",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NAME",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "NAME",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PHONE",
+              "type": "string",
+              "display": true,
+              "removed": false,
+              "required": false,
+              "displayName": "PHONE",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CITY",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "CITY",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "EMAIL",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "EMAIL",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "DATA NASCITA",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "DATA NASCITA",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "EDUCATIONAL",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "EDUCATIONAL",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "JOB HISTORY",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "JOB HISTORY",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SKILLS",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "SKILLS",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SUMMARIZE",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "SUMMARIZE",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "VOTE",
+              "type": "string",
+              "display": true,
+              "removed": false,
+              "required": false,
+              "displayName": "VOTE",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CONSIDERATION",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "CONSIDERATION",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "63209d28-2bea-46e0-be72-3b1c7cff9c89",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        2880,
+        320
+      ],
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"vote\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"consideration\": {\n\t\t\t\"type\": \"string\"\n\t\t}\n\t}\n}"
+      },
+      "id": "2945384f-26d9-4323-b218-c64b293bcbf8",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        2640,
+        520
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Desired profile:\n{{ $json.profile_wanted }}\n\nCandidate:\n{{ $('Summarization Chain').item.json.response.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "あなたは人事の専門家であり、候補者が企業が求めるプロフィールに合致しているかどうかを判断する必要があります。 1から10のスコアで評価してください。1は「求める条件にまったく合致していない」、10は「完全に一致しており理想的な候補者」であることを意味します。 さらに「consideration（考察）」の欄には、その評価を与えた理由を記載してください。"
+            }
+          ]
+        }
+      },
+      "id": "b5684e2e-5a32-4751-9059-3f4ee274d25f",
+      "name": "HR Expert",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        2480,
+        320
+      ],
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"telephone\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n      \"city\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n      \"birthdate\": {\n\t\t\t\"type\": \"string\"\n\t\t}\n\t}\n}",
+        "options": {
+          "systemPromptTemplate": "You are an expert extraction algorithm.\nOnly extract relevant information from the text.\nIf you do not know the value of an attribute asked to extract, you may omit the attribute's value."
+        }
+      },
+      "id": "42eeed49-a2bd-4a9a-a80c-8cc9615dc97b",
+      "name": "Personal Data",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "position": [
+        1080,
+        260
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "CV",
+        "name": "=CV-{{ $now.format('yyyyLLdd') }}-{{ $json.CV[0].filename }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1tzeSpx4D3EAGXa3Wg-gqGbdaUk6LIZTV",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1tzeSpx4D3EAGXa3Wg-gqGbdaUk6LIZTV",
+          "cachedResultName": "CV"
+        },
+        "options": {}
+      },
+      "id": "9b7aacd6-64a0-40e6-8b37-9920c8701724",
+      "name": "Upload CV",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        760,
+        160
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "6ajCrMhc3BYdK7X7",
+          "name": "Google Drive account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "bed2a61d-a6aa-4e6c-80e4-60bbfd8953b2",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        1840,
+        780
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "content": "HRエキスパート\nこのワークフローは、提出された履歴書から関連情報を抽出し、定義済みのプロファイルと照合して候補者の資格を分析し、結果をGoogleシートに保存することで、求人応募の処理プロセスを自動化します。",
+        "width": 540,
+        "color": 3
+      },
+      "id": "377daac8-ddbd-46a9-973b-a6813b141cfe",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        360,
+        -140
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "履歴書がGoogleドライブにアップロードされ、処理できるように変換されます。",
+        "height": 420,
+        "width": 300
+      },
+      "id": "0e59543f-42f2-43b7-929c-fcbf3edcb1b3",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        680,
+        80
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "候補者を評価するための重要な情報を、2つに分岐させて異なるノードで実施した後に皇族のノードでデータを統合させます。",
+        "height": 440,
+        "width": 360
+      },
+      "id": "4e8cadf3-1ef0-4608-84af-e36f34f67fa3",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1040,
+        160
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "候補者の分類に役立つ関連情報の要約",
+        "height": 240,
+        "width": 320
+      },
+      "id": "172bb266-f972-4b6a-b73e-c45e306415af",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1780,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "候補者を採用したい企業が求めるプロファイルの特性",
+        "height": 240,
+        "width": 220
+      },
+      "id": "ec1439f7-93ff-4665-bf76-8ad4e0c99a5a",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2160,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "候補者の評価（投票およびHR担当者による検討を含む）— 求める人材像と候補者のスキルの適合性を踏まえて",
+        "height": 240,
+        "width": 360
+      },
+      "id": "eff7eeef-68e1-44d6-a065-a86e725d06cd",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2420,
+        240
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Summarization Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Qualifications",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Summarization Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "HR Expert",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Personal Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HR Expert": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personal Data": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Profile Wanted": {
+      "main": [
+        [
+          {
+            "node": "HR Expert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualifications": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Qualifications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Personal Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarization Chain": {
+      "main": [
+        [
+          {
+            "node": "Profile Wanted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "HR Expert",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "33e18949-5342-4469-9f88-6a55281e0bac",
+  "meta": {
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "KAs9oAQZFbro5Fm6",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

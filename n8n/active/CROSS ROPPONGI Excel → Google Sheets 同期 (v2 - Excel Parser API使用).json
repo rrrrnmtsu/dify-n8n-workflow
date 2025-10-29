@@ -1,0 +1,1531 @@
+{
+  "name": "CROSS ROPPONGI Excel → Google Sheets 同期 (v2 - Excel Parser API使用)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 12,
+              "triggerAtMinute": null
+            },
+            {}
+          ]
+        }
+      },
+      "id": "0a86b48d-ff66-4c5a-8f86-110cbbd987dd",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/getUpdates",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"offset\": {{ $execution.customData.get('last_update_id') || 0 }},\n  \"timeout\": 25,\n  \"allowed_updates\": [\"message\"]\n}",
+        "options": {}
+      },
+      "id": "22b27420-0389-47df-b08c-2b009adbb4f1",
+      "name": "Get Telegram Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        368,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// レスポンスチェック\nif (!response.ok || !response.result || response.result.length === 0) {\n  return [];\n}\n\nconst updates = response.result;\nconst processedItems = [];\nconst allowedChatId = -4796493812;\n\n// 前回処理したファイル情報を取得（JSON文字列 → オブジェクト）\nconst lastProcessedFilesJson = $execution.customData.get('last_processed_files') || '{}';\nconst lastProcessedFiles = JSON.parse(lastProcessedFilesJson);\n\n// 5分 = 300秒\nconst DUPLICATE_THRESHOLD = 300;\n\n// メッセージの有効期限（1時間 = 3600秒）\nconst MAX_MESSAGE_AGE = 3600;\n\n// 現在時刻（秒単位）\nconst currentTime = Math.floor(Date.now() / 1000);\n\n// CROSSROPPONGIファイルのみを抽出\nconst validFiles = [];\n\nfor (const update of updates) {\n  const message = update.message;\n  \n  // ドキュメント（ファイル）がある場合のみ処理\n  if (!message || !message.document) {\n    continue;\n  }\n  \n  const chatId = message.chat.id;\n  \n  // 指定されたチャットIDのみ処理\n  if (chatId !== allowedChatId) {\n    continue;\n  }\n  \n  const document = message.document;\n  const fileName = document.file_name;\n  const fileExtension = fileName.split('.').pop().toLowerCase();\n  \n  // Excelファイル以外は除外\n  if (!['xlsx', 'xls'].includes(fileExtension)) {\n    console.log(`Excelファイルではないためスキップ: ${fileName}`);\n    continue;\n  }\n  \n  // ファイル名パターン確認: yyyymmddCROSSROPPONGI.xxx\n  const dateMatch = fileName.match(/^(\\d{4})(\\d{2})(\\d{2})CROSSROPPONGI\\./i);\n  \n  if (!dateMatch) {\n    console.log(`ファイル名パターン不一致のためスキップ: ${fileName} (期待: yyyymmddCROSSROPPONGI.xlsx)`);\n    continue;\n  }\n  \n  // パターンマッチした場合のみ追加\n  const year = dateMatch[1];\n  const month = dateMatch[2];\n  const day = dateMatch[3];\n  const reportDate = `${year}-${month}-${day}`;\n  \n \n  \n  validFiles.push({\n    update: update,\n    message: message,\n    document: document,\n    fileName: fileName,\n    fileExtension: fileExtension,\n    reportDate: reportDate,\n    year: year,\n    month: month,\n    day: day,\n    timestamp: message.date\n  });\n}\n\nconsole.log(`有効なファイル数: ${validFiles.length}`);\n\n// ファイル名ごとにグループ化\nconst fileGroups = {};\nfor (const file of validFiles) {\n  if (!fileGroups[file.fileName]) {\n    fileGroups[file.fileName] = [];\n  }\n  fileGroups[file.fileName].push(file);\n}\n\n// 各ファイル名グループの最新のものを処理\nfor (const fileName in fileGroups) {\n  const files = fileGroups[fileName];\n  \n  // タイムスタンプで降順ソート（最新が先頭）\n  files.sort((a, b) => b.timestamp - a.timestamp);\n  \n  const latestFile = files[0];\n  const lastProcessedTime = lastProcessedFiles[fileName];\n  \n  // 前回処理時刻との差分をチェック\n  if (lastProcessedTime) {\n    const timeSinceLastProcess = currentTime - lastProcessedTime;\n    \n    if (timeSinceLastProcess < DUPLICATE_THRESHOLD) {\n      // 5分以内 → スキップ\n      const remainingSeconds = DUPLICATE_THRESHOLD - timeSinceLastProcess;\n      console.log(`${fileName}: 前回処理から${Math.floor(timeSinceLastProcess / 60)}分${timeSinceLastProcess % 60}秒しか経過していないためスキップ（残り${Math.floor(remainingSeconds / 60)}分${remainingSeconds % 60}秒）`);\n      continue;\n    } else {\n      // 5分超過 → 処理\n      console.log(`${fileName}: 前回処理から${Math.floor(timeSinceLastProcess / 60)}分${timeSinceLastProcess % 60}秒経過 → 処理します`);\n    }\n  } else {\n    // 初回処理\n    console.log(`${fileName}: 初回処理`);\n  }\n  \n  // 処理対象に追加\n  processedItems.push({\n    json: {\n      update_id: latestFile.update.update_id,\n      message_id: latestFile.message.message_id,\n      chat_id: latestFile.message.chat.id,\n      chat_name: latestFile.message.chat.title || '',\n      file_id: latestFile.document.file_id,\n      file_name: latestFile.fileName,\n      file_type: latestFile.fileExtension,\n      file_size: latestFile.document.file_size,\n      mime_type: latestFile.document.mime_type || '',\n      from_user: latestFile.message.from.first_name || latestFile.message.from.username || '',\n      from_user_id: latestFile.message.from.id,\n      from_username: latestFile.message.from.username || '',\n      report_date: latestFile.reportDate,\n      received_at: new Date(latestFile.timestamp * 1000).toISOString()\n    }\n  });\n  \n  // 今回処理したファイル名と時刻を記憶\n  lastProcessedFiles[fileName] = currentTime;\n}\n\n// 更新した処理履歴を保存（オブジェクト → JSON文字列）\n$execution.customData.set('last_processed_files', JSON.stringify(lastProcessedFiles));\n\n// offsetを更新\nif (updates.length > 0) {\n  const lastUpdateId = updates[updates.length - 1].update_id;\n  $execution.customData.set('last_update_id', lastUpdateId + 1);\n}\n\nconsole.log(`全更新数: ${updates.length}, 処理対象: ${processedItems.length}`);\n\nreturn processedItems;"
+      },
+      "id": "d4307874-ac25-4002-9dec-2426408d8f7e",
+      "name": "Filter Excel Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "id": "2b0ae428-3e47-4421-af0e-86ab88e9e755",
+      "name": "Get File Path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "d1142986-dac7-4400-831b-19d2b83a220c",
+      "name": "Download Excel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://excel-parser:5000/parse",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f5a3f0e8-ef58-45b7-aa9b-2c2f0d3c6ba0",
+      "name": "Parse Excel via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "日次売上",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "営業日": "= {{ $json.business_date }}",
+            "総来客数": "={{ $json.total_customer_count }}",
+            "男性": "={{ $json.male_count }}",
+            "女性": "={{ $json.female_count }}",
+            "総売上": "= {{ $json.total_sales }}",
+            "現金化不足": "={{ $json.cash_shortage }}",
+            "FRONT": "={{ $json.section_sales.front }}",
+            "CLOAK備品": "={{ $json.section_sales.cloak_supplies }}",
+            "LOCKER": "={{ $json.section_sales.locker }}",
+            "BAR1": "={{ $json.section_sales.bar1 }}",
+            "BAR2": "={{ $json.section_sales.bar2 }}",
+            "BAR3": "={{ $json.section_sales.bar3 }}",
+            "BAR4": "={{ $json.section_sales.bar4 }}",
+            "VIP1": "={{ $json.section_sales.vip1 }}",
+            "VVIP": "={{ $json.section_sales.vvip }}",
+            "PARTY": "={{ $json.section_sales.party }}",
+            "未収": "={{ $json.receivables.uncollected }}",
+            "未収回収": "={{ $json.receivables.collected }}"
+          },
+          "matchingColumns": [
+            "営業日"
+          ],
+          "schema": [
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "総来客数",
+              "displayName": "総来客数",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "男性",
+              "displayName": "男性",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "女性",
+              "displayName": "女性",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "総売上",
+              "displayName": "総売上",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "現金化不足",
+              "displayName": "現金化不足",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FRONT",
+              "displayName": "FRONT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CLOAK備品",
+              "displayName": "CLOAK備品",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LOCKER",
+              "displayName": "LOCKER",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "BAR1",
+              "displayName": "BAR1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "BAR2",
+              "displayName": "BAR2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "BAR3",
+              "displayName": "BAR3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "BAR4",
+              "displayName": "BAR4",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "VIP1",
+              "displayName": "VIP1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "VVIP",
+              "displayName": "VVIP",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PARTY",
+              "displayName": "PARTY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "未収",
+              "displayName": "未収",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "未収回収",
+              "displayName": "未収回収",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1584410c-95bb-41b0-94a9-0e80bf588e94",
+      "name": "Sync to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1936,
+        -640
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8401202439:AAHwPAMl26dYPi7J6N2LV_o32VKb2T0BtbI/sendMessage",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.message_text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d80b2cda-78db-4cae-a525-8d200bd58431",
+      "name": "Send Success Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter Excel Filesから元のファイル名を取得\nconst originalFileName = $('Filter Excel Files').item.json.file_name;\n\n// 現在のバイナリデータを取得\nconst binaryData = $input.first().binary.data;\n\n// バイナリデータのファイル名を変更\nconst updatedBinary = {\n  ...binaryData,\n  fileName: originalFileName\n};\n\n// 出力\nreturn [{\n  json: $input.first().json,\n  binary: {\n    data: updatedBinary\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        -32
+      ],
+      "id": "17798609-80a1-4cad-b1e0-d6c985b4da90",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "296443b2-5c67-44c3-923a-8a4d48c0857c",
+              "name": "telegram_chat_id",
+              "value": "={{ $('Filter Excel Files').first().json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "435e9938-c0b2-4834-aff1-6dbf9f60e47c",
+              "name": "telegram_message_id",
+              "value": "={{ $('Filter Excel Files').first().json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "1c1cd505-e3c5-45da-8604-641254ebf56e",
+              "name": "file_name",
+              "value": "={{ $('Filter Excel Files').first().json.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "e16dedc1-9726-4a65-b03c-32b93423dd68",
+              "name": "business_date",
+              "value": "={{ $('Parse Excel via API').first().json.business_date }}",
+              "type": "string"
+            },
+            {
+              "id": "36172893-7d52-4c27-be1b-55372aa91d4a",
+              "name": "total_sales",
+              "value": "={{ $('Parse Excel via API').first().json.total_sales }}",
+              "type": "string"
+            },
+            {
+              "id": "ff258cbd-334d-4039-8900-d0912a8861e4",
+              "name": "total_customer_count",
+              "value": "={{ $('Parse Excel via API').first().json.total_customer_count }}",
+              "type": "string"
+            },
+            {
+              "id": "5fd1a058-3b70-4444-b02a-3c19239ff6bf",
+              "name": "area_sales",
+              "value": "={{ JSON.stringify($('Parse Excel via API').first().json.section_sales) }}",
+              "type": "string"
+            },
+            {
+              "id": "41d03223-a5a0-4131-96d8-578e53891c7e",
+              "name": "uncollected_list",
+              "value": "={{ JSON.stringify($('Parse Excel via API').first().json.uncollected_list) }}",
+              "type": "string"
+            },
+            {
+              "id": "5e56dc83-5bb5-4462-a4ad-9b79c47623c5",
+              "name": "collected_list",
+              "value": "={{ JSON.stringify($('Parse Excel via API').first().json.collected_list) }}",
+              "type": "string"
+            },
+            {
+              "id": "87de1266-ccc2-4723-8ac4-04ee7c4c9a83",
+              "name": "vip_count",
+              "value": "={{ $('Parse Excel via API').first().json.vip_list.length }}",
+              "type": "string"
+            },
+            {
+              "id": "966b5811-3822-403e-a623-5384f72723e5",
+              "name": "vvip_count",
+              "value": "={{ $('Parse Excel via API').first().json.vvip_list.length }}",
+              "type": "string"
+            },
+            {
+              "id": "65393c0f-7eea-4399-8015-057734178cf9",
+              "name": "uncollected_count",
+              "value": "={{ $('Parse Excel via API').first().json.uncollected_list.length }}",
+              "type": "string"
+            },
+            {
+              "id": "30d8c84d-824c-4556-a1b1-ae753726c911",
+              "name": "collected_count",
+              "value": "={{ $('Parse Excel via API').first().json.collected_list.length }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2928,
+        16
+      ],
+      "id": "73c52db2-9880-477a-9dd7-a4f31d0d09c3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "未収回収リスト",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "担当者": "={{ $json.person_in_charge }}",
+            "金額": "={{ $json.amount }}",
+            "顧客名": "={{ $json.customer_name }}",
+            "営業日": "={{ $json.business_date }}",
+            "ユニークキー": "={{ $json.unique_key }}"
+          },
+          "matchingColumns": [
+            "ユニークキー"
+          ],
+          "schema": [
+            {
+              "id": "ユニークキー",
+              "displayName": "ユニークキー",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "顧客名",
+              "displayName": "顧客名",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "金額",
+              "displayName": "金額",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "担当者",
+              "displayName": "担当者",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e8d7527a-2372-4c17-8e2d-6f1034d1c9ca",
+      "name": "Sync to Google Sheets(未収回収)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2176,
+        464
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst businessDate = data.business_date;\nconst payments = data.payment_methods;\n\nconst areas = [\n  { name: 'FRONT', data: payments.front },\n  { name: 'CLOAK', data: payments.cloak },\n  { name: 'LOCKER', data: payments.locker },\n  { name: 'BAR1', data: payments.bar1 },\n  { name: 'BAR2', data: payments.bar2 },\n  { name: 'BAR3', data: payments.bar3 },\n  { name: 'BAR4', data: payments.bar4 },\n  { name: 'VIP', data: payments.vip },\n  { name: 'VVIP', data: payments.vvip },\n  { name: 'PARTY', data: payments.party }\n];\n\nconst result = areas.map(area => ({\n  json: {\n    unique_key: `${businessDate}_${area.name}`,  // 追加\n    business_date: businessDate,\n    area: area.name,\n    cash: area.data.cash,\n    credit: area.data.credit,\n    quicpay: area.data.quicpay,\n    airpay_qr: area.data.airpay_qr,\n    zentoshin: area.data.zentoshin,\n    jppoint: area.data.jppoint,\n    receivable: area.data.receivable\n  }\n}));\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -384
+      ],
+      "id": "a5b3c9ba-e0f6-421d-872e-009bbf003973",
+      "name": "Transform 決済別 Data"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "決済別",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ユニークキー": "={{$json.unique_key}}",
+            "営業日": "={{$json.business_date}}",
+            "エリア": "={{$json.area}}",
+            "現金": "={{$json.cash}}",
+            "クレジット": "={{$json.credit}}",
+            "QUICPAY": "={{$json.quicpay}}",
+            "AirPayQR": "={{$json.airpay_qr}}",
+            "全東進": "={{$json.zentoshin}}",
+            "JPpoint": "={{$json.jppoint}}",
+            "未収": "={{$json.receivable}}"
+          },
+          "matchingColumns": [
+            "ユニークキー"
+          ],
+          "schema": [
+            {
+              "id": "ユニークキー",
+              "displayName": "ユニークキー",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "エリア",
+              "displayName": "エリア",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "現金",
+              "displayName": "現金",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "クレジット",
+              "displayName": "クレジット",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "QUICPAY",
+              "displayName": "QUICPAY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AirPayQR",
+              "displayName": "AirPayQR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "全東進",
+              "displayName": "全東進",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "JPpoint",
+              "displayName": "JPpoint",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "未収",
+              "displayName": "未収",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b7fce7d5-32f0-4e13-a7b5-99f36fa833d5",
+      "name": "Sync to 決済別シート",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1936,
+        -384
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst businessDate = data.business_date;\nconst vipList = data.vip_list;\n\nif (!vipList || vipList.length === 0) {\n  return [{\n    json: {\n      unique_key: null,\n      business_date: businessDate,\n      customer_name: null,\n      amount: null,\n      _skip: true\n    }\n  }];\n}\n\nconst result = vipList.map(item => ({\n  json: {\n    unique_key: `${businessDate}_${item.customer_name}`,\n    business_date: businessDate,\n    customer_name: item.customer_name,\n    amount: item.amount,\n    _skip: false\n  }\n}));\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -176
+      ],
+      "id": "15ebc724-2159-4b89-8c50-0a2eae1f0367",
+      "name": "Transform VIPリスト Data:"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "VIPリスト",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ユニークキー": "={{ $json.unique_key }}",
+            "営業日": "={{ $json.business_date }}",
+            "金額": "={{ $json.amount }}",
+            "顧客名": "={{ $json.customer_name }}"
+          },
+          "matchingColumns": [
+            "ユニークキー"
+          ],
+          "schema": [
+            {
+              "id": "ユニークキー",
+              "displayName": "ユニークキー",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "顧客名",
+              "displayName": "顧客名",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "金額",
+              "displayName": "金額",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "024934b1-c3ab-4a10-81ce-9e4cece4eef3",
+      "name": "Sync to VIPリスト",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2144,
+        -176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "VVIPリスト",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "金額": "={{ $json.amount }}",
+            "顧客名": "={{ $json.customer_name }}",
+            "営業日": "={{ $json.business_date }}",
+            "ユニークキー": "={{ $json.unique_key }}"
+          },
+          "matchingColumns": [
+            "ユニークキー"
+          ],
+          "schema": [
+            {
+              "id": "ユニークキー",
+              "displayName": "ユニークキー",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "顧客名",
+              "displayName": "顧客名",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "金額",
+              "displayName": "金額",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "44de3b52-5470-4b94-aac5-85a9ca1e4f97",
+      "name": "Sync to VVIPリスト",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2144,
+        32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst businessDate = data.business_date;\nconst uncollectedList = data.uncollected_list;\n\n// データが空の場合は、ダミーデータを1件返す（後続ノードでフィルタリング）\nif (!uncollectedList || uncollectedList.length === 0) {\n  return [{\n    json: {\n      unique_key: null,\n      business_date: businessDate,\n      customer_name: null,\n      amount: null,\n      person_in_charge: null,\n      _skip: true  // スキップフラグ\n    }\n  }];\n}\n\nconst result = uncollectedList.map(item => ({\n  json: {\n    unique_key: `${businessDate}_${item.customer_name}`,\n    business_date: businessDate,\n    customer_name: item.customer_name,\n    amount: item.amount,\n    person_in_charge: item.person_in_charge || '',\n    _skip: false\n  }\n}));\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        224
+      ],
+      "id": "70dbdba6-95d1-47bb-8bac-bd618d351617",
+      "name": "Transform 未収リスト Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst businessDate = data.business_date;\nconst vvipList = data.vvip_list;\n\nif (!vvipList || vvipList.length === 0) {\n  return [{\n    json: {\n      unique_key: null,\n      business_date: businessDate,\n      customer_name: null,\n      amount: null,\n      _skip: true\n    }\n  }];\n}\n\nconst result = vvipList.map(item => ({\n  json: {\n    unique_key: `${businessDate}_${item.customer_name}`,\n    business_date: businessDate,\n    customer_name: item.customer_name,\n    amount: item.amount,\n    _skip: false\n  }\n}));\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        32
+      ],
+      "id": "2ab41e49-4be8-4be6-a293-4028d3cf5610",
+      "name": "Transform VVIPリスト Data"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14ACKU8Rl9ZHtlNvSHeyHr2BSqunRmFAB1nJ7Nqm6_2o",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "未収リスト",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "担当者": "={{ $json.person_in_charge }}",
+            "金額": "={{ $json.amount }}",
+            "顧客名": "={{ $json.customer_name }}",
+            "営業日": "={{ $json.business_date }}",
+            "ユニークキー": "={{ $json.unique_key }}"
+          },
+          "matchingColumns": [
+            "ユニークキー"
+          ],
+          "schema": [
+            {
+              "id": "ユニークキー",
+              "displayName": "ユニークキー",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "営業日",
+              "displayName": "営業日",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "顧客名",
+              "displayName": "顧客名",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "金額",
+              "displayName": "金額",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "担当者",
+              "displayName": "担当者",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9aa0af1f-65b6-4464-96b6-0d2662107b7d",
+      "name": "Sync to 未収リスト",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tDZB4CahvTPTWN8q",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst businessDate = data.business_date;\nconst collectedList = data.collected_list;\n\n// データが空の場合は、ダミーデータを1件返す\nif (!collectedList || collectedList.length === 0) {\n  return [{\n    json: {\n      unique_key: null,\n      business_date: businessDate,\n      customer_name: null,\n      amount: null,\n      person_in_charge: null,\n      _skip: true\n    }\n  }];\n}\n\nconst result = collectedList.map(item => ({\n  json: {\n    unique_key: `${businessDate}_${item.customer_name}`,\n    business_date: businessDate,\n    customer_name: item.customer_name,\n    amount: item.amount,\n    person_in_charge: item.person_in_charge || '',\n    _skip: false\n  }\n}));\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        448
+      ],
+      "id": "93f21271-9857-43db-b291-9241ea242c2c",
+      "name": "Transform 未収回収リスト Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fa018137-b511-44e2-8db9-94e0c0dae7eb",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1936,
+        224
+      ],
+      "id": "ee34e949-9cbd-4e8e-ad83-050a7420979d",
+      "name": "Filter Empty 未収リスト"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2571528d-a28d-4f4a-8c0d-cf610a4a69eb",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1952,
+        464
+      ],
+      "id": "7f05fefe-0a7e-4726-843b-887479932359",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cc2001fe-9e8d-4a18-9a3a-b188d2df0e52",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1936,
+        -176
+      ],
+      "id": "765f8f34-10ea-4b24-a06b-2f85bd497f83",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "42a39852-4c8a-4e48-9cfe-ec6edc026a91",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        32
+      ],
+      "id": "b12924a3-e762-4c54-b6c3-f683166121ad",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "numberInputs": 6
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2720,
+        -48
+      ],
+      "id": "5fbab701-c97a-4945-bfd5-f34d66f32de8",
+      "name": "Merge All Sync Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst parseData = $('Parse Excel via API').first().json;\n\n// エリア別売上\nconst areaSales = parseData.section_sales;\nconst areaSalesText = `【エリア別売上】\n🏪 FRONT: ¥${(areaSales.front || 0).toLocaleString()}\n🎽 CLOAK: ¥${(areaSales.cloak_supplies || 0).toLocaleString()}\n🔒 LOCKER: ¥${(areaSales.locker || 0).toLocaleString()}\n🍸 BAR1: ¥${(areaSales.bar1 || 0).toLocaleString()}\n🍸 BAR2: ¥${(areaSales.bar2 || 0).toLocaleString()}\n🍸 BAR3: ¥${(areaSales.bar3 || 0).toLocaleString()}\n🍸 BAR4: ¥${(areaSales.bar4 || 0).toLocaleString()}\n⭐ VIP: ¥${(areaSales.vip1 || 0).toLocaleString()}\n🌟 VVIP: ¥${(areaSales.vvip || 0).toLocaleString()}\n🎉 PARTY: ¥${(areaSales.party || 0).toLocaleString()}`;\n\n// 未収詳細\nconst uncollectedList = parseData.uncollected_list || [];\nlet uncollectedText = '';\nif (uncollectedList.length > 0) {\n  uncollectedText = '\\n\\n【未収詳細】';\n  uncollectedList.forEach(item => {\n    const amount = (item.amount || 0).toLocaleString();\n    const person = item.person_in_charge || '未定';\n    uncollectedText += `\\n・${item.customer_name}: ¥${amount} (担当: ${person})`;\n  });\n}\n\n// 回収詳細\nconst collectedList = parseData.collected_list || [];\nlet collectedText = '';\nif (collectedList.length > 0) {\n  collectedText = '\\n\\n【回収詳細】';\n  collectedList.forEach(item => {\n    const amount = (item.amount || 0).toLocaleString();\n    const person = item.person_in_charge || '未定';\n    collectedText += `\\n・${item.customer_name}: ¥${amount} (担当: ${person})`;\n  });\n}\n\n// 通知メッセージ全体\nconst message = `✅ ${data.file_name} のデータをGoogle Sheetsに同期しました。\n\n📅 営業日: ${data.business_date}\n💰 総売上: ¥${(data.total_sales || 0).toLocaleString()}\n👥 総来客数: ${data.total_customer_count || 0}名\n\n${areaSalesText}\n\n【リスト件数】\n⭐ VIP: ${parseData.vip_list.length}件\n🌟 VVIP: ${parseData.vvip_list.length}件\n⚠️ 未収: ${uncollectedList.length}件\n✅ 回収: ${collectedList.length}件${uncollectedText}${collectedText}`;\n\nreturn [{\n  json: {\n    chat_id: data.telegram_chat_id,\n    message_text: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        16
+      ],
+      "id": "39159195-cc2f-4040-af26-e5a77a85ede2",
+      "name": "Format Notification Message"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        176
+      ],
+      "id": "2a7ffdbd-ccee-4976-8636-cbf22c9feccb",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Get Telegram Updates": {
+      "main": [
+        [
+          {
+            "node": "Filter Excel Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Excel Files": {
+      "main": [
+        [
+          {
+            "node": "Get File Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Path": {
+      "main": [
+        [
+          {
+            "node": "Download Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Excel": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Excel via API": {
+      "main": [
+        [
+          {
+            "node": "Sync to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Transform 決済別 Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Transform VIPリスト Data:",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Transform VVIPリスト Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Transform 未収リスト Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Transform 未収回収リスト Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Parse Excel via API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Format Notification Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform 決済別 Data": {
+      "main": [
+        [
+          {
+            "node": "Sync to 決済別シート",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform VIPリスト Data:": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform 未収リスト Data": {
+      "main": [
+        [
+          {
+            "node": "Filter Empty 未収リスト",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform VVIPリスト Data": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform 未収回収リスト Data": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Empty 未収リスト": {
+      "main": [
+        [
+          {
+            "node": "Sync to 未収リスト",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Sync to Google Sheets(未収回収)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Sync to VIPリスト",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Sync to VVIPリスト",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync to 決済別シート": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sync to VIPリスト": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Sync to VVIPリスト": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Sync to 未収リスト": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Sync to Google Sheets(未収回収)": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sync Results",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Merge All Sync Results": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notification Message": {
+      "main": [
+        [
+          {
+            "node": "Send Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e85aaf5b-98ca-4982-acf8-054a03a8dec9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c09b07cf2fc8565139c503e0cc79f4a730efffdc2d5e91e0a4a044015945cbc"
+  },
+  "id": "FbioKm9Offb0SZK1",
+  "tags": []
+}

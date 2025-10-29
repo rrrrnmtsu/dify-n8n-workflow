@@ -1,0 +1,211 @@
+{
+  "name": "【特典】Zoom動画データGoogleドライブ自動アップロード",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {}
+      },
+      "id": "aad3a0ef-fa5a-4b2a-b6b7-065c5fa5b6e6",
+      "name": "Zoom: Get data of last meeting",
+      "type": "n8n-nodes-base.zoom",
+      "position": [
+        280,
+        140
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.zoom.us/v2/meetings/{{ $json.id }}/recordings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zoomOAuth2Api",
+        "options": {}
+      },
+      "id": "946945df-a51b-405f-af4a-9bb962dc0f7b",
+      "name": "Zoom: Get transcripts data",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        480,
+        140
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "zoomOAuth2Api": {
+          "id": "D305jsGORFh51Qfa",
+          "name": "Zoom account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        140
+      ],
+      "id": "3e6abef1-41e5-4a47-9be6-a658e57c2634",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9b8678a1-35d0-40aa-affc-705ab595fa3d",
+              "leftValue": "={{ $('Zoom: Get transcripts data').item.json.recording_files.find(f => f.file_type === 'MP4').download_url  }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        140
+      ],
+      "id": "9ee0c6f1-f5c1-451c-9079-06d6a498ac3f",
+      "name": "Filter: Only Meetings with Recordings"
+    },
+    {
+      "parameters": {
+        "content": "# Zoom動画データGoogleドライブ自動アップロード",
+        "height": 380,
+        "width": 1160
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "3532b592-af47-4273-a6a5-a781590d4d8d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Filter: Only Meetings with Recordings').item.json.topic }} - 録画",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Create Folder').item.json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        920,
+        140
+      ],
+      "id": "a1b7a692-4d6e-4801-9f7f-cff928c919f6",
+      "name": "Upload to Google Drive1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aX3FyARGjDlM2ixT",
+          "name": "Tennki_Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Zoom: Get data of last meeting": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get transcripts data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom: Get transcripts data": {
+      "main": [
+        [
+          {
+            "node": "Filter: Only Meetings with Recordings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Zoom: Get data of last meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Only Meetings with Recordings": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "747ea64c-2d55-4e4d-b97f-f8aae5d510db",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "bFAUAEtsE1dbGlY3",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

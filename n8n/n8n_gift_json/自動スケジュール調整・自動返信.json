@@ -1,0 +1,316 @@
+{
+  "name": "【特典】自動スケジュール調整・自動返信",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 受信メールが予約に関するものか判別\n\nLLM（大規模言語モデル）を使用して、メールの件名と本文をチェックし、それが予約のリクエストであるかどうかを判断します。",
+        "height": 490,
+        "width": 617
+      },
+      "id": "9bb8a587-0800-4816-b6f3-a1d6fb7af317",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -100,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## カレンダーの空き状況を取得し、返信を作成する\n",
+        "height": 482,
+        "width": 796
+      },
+      "id": "6930bd90-e2d3-43fb-b032-70692ae9a043",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        640,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "0169198b-76d5-4c2b-9613-4d03d1b1d9b8",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        180,
+        320
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "5c08a466-ed8d-4519-a541-012492015abf",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        720,
+        320
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').first().json.id }}",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "id": "021678a3-e16e-4f05-b25f-76f0bcb8f16b",
+      "name": "Send reply",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1180,
+        120
+      ],
+      "webhookId": "0f18d414-1b14-4d2e-9fc2-d2d302372dc6",
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "includeSpamTrash": false,
+          "readStatus": "unread"
+        }
+      },
+      "id": "f0dde91a-e67e-4fe4-8839-260025323155",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "position": [
+        -40,
+        140
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "=以下のメールが会議や電話のスケジュール設定を提案しているかどうかを評価してください。\n\n件名：{{ $json.Subject }}\nスニペット：{{ $json.snippet }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "is_appointment",
+              "description": "メールで予約のリクエスト"
+            }
+          ]
+        },
+        "options": {
+          "fallback": "discard"
+        }
+      },
+      "id": "b194c8ea-56d8-4d09-982a-ab3dec91a8d6",
+      "name": "Classify appointment",
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "position": [
+        180,
+        140
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sender: {{ $('Gmail Trigger').first().json.From }}\nSubject: {{ $('Gmail Trigger').first().json.Subject }}\nEmail Text: {{ $('Gmail Trigger').first().json.snippet }}",
+        "options": {
+          "systemMessage": "=あなたはメールスケジュールアシスタントです。受信したメールに基づいて、私の空き状況を確認し、適切な返信を提案してください。\n\n単に「曜日」だけでなく、具体的な時間を提示するように努めてください。私の空き状況を確認する際は、会議と会議の間に十分な時間があることを確認してください。\n\nもし私が利用できない場合は、常に私の空き状況に基づいて新しい時間を提案してください。新しい時間を提案する際は、常に前の会議から15分のバッファを残してください。\n\n本日の日付と時刻は次のとおりです: {{ $now.toISO() }}。"
+        }
+      },
+      "id": "4c5dcce2-bf45-4e50-ab87-58215a520ed9",
+      "name": "Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        740,
+        120
+      ],
+      "typeVersion": 1.8
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "your_email@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ $now.minus(1, 'day').toISO() }}",
+        "timeMax": "={{ $now.plus(1, 'month').toISO() }}",
+        "options": {}
+      },
+      "id": "c91ad83d-1c88-4871-91d7-654452da25d3",
+      "name": "Google Calendar",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "position": [
+        920,
+        320
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "x0ZwfElMn61Lt4qa",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Gmail Trigger').first().json.id }}"
+      },
+      "id": "024057ce-a038-4de5-ae9e-761495ffdfe4",
+      "name": "Mark as read",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1180,
+        300
+      ],
+      "webhookId": "7e2d851b-c9f3-471c-875d-0da7c2c3b561",
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NgPtUScSVNJhcVOJ",
+          "name": "Gmail account (hiroki.sato@myuuu.io)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Agent": {
+      "main": [
+        [
+          {
+            "node": "Send reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark as read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify appointment",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify appointment": {
+      "main": [
+        [
+          {
+            "node": "Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d6f3850c-0121-4c05-b7d2-ba4d8a3b2097",
+  "meta": {
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "50IPFkRknTFb5lqk",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

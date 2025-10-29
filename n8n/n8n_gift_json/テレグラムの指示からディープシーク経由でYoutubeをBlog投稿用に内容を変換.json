@@ -1,0 +1,252 @@
+{
+  "name": "【特典】テレグラムの指示からディープシーク経由でYoutubeをBlog投稿用に内容を変換",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://www.searchapi.io/api/v1/search",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "engine",
+              "value": "youtube_transcripts"
+            },
+            {
+              "name": "video_id",
+              "value": "={{ $json.videoId }}"
+            },
+            {
+              "name": "lang",
+              "value": "={{$json['lang'] || 'en'}}"
+            },
+            {
+              "name": "transcript_type",
+              "value": "={{$json['transcript_type'] || 'auto'}}"
+            },
+            {
+              "name": "api_key",
+              "value": "="
+            }
+          ]
+        }
+      },
+      "name": "YouTube Transcripts API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        380,
+        140
+      ],
+      "id": "5c45ffb2-b79f-49e6-9b0d-bbbd508a2ff4"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "Just got the transcript, loading more...",
+        "additionalFields": {
+          "appendAttribution": "="
+        }
+      },
+      "id": "67cbdfd9-98da-47c8-9eed-2f4755c5de7b",
+      "name": "Telegram1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        140
+      ],
+      "webhookId": "28ebfbd3-21db-4326-bab7-92a30bb0abcc"
+    },
+    {
+      "parameters": {
+        "functionCode": "function extractYoutubeId(url) {\n    const patterns = [\n        /(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([^&\\n?#]+)/,\n        /youtube\\.com\\/shorts\\/([^&\\n?#]+)/\n    ];\n\n    for (const pattern of patterns) {\n        const match = url.match(pattern);\n        if (match && match[1]) {\n            return match[1];\n        }\n    }\n    return null;\n}\n\n// Modified code\nconst message = items[0].json.message.text;\nconst urlRegex = /(https?:\\/\\/)?(www\\.)?(youtube\\.com|youtu\\.be)\\/.+/;\nconst youtubeUrl = message.match(urlRegex)?.[0];\n\nif (!youtubeUrl) {\n    return [{json: {error: 'No YouTube URL found'}}];\n}\n\nconst videoId = extractYoutubeId(youtubeUrl);\nreturn [{json: {videoId}}];"
+      },
+      "id": "cd16cfc8-a78a-45d6-a2f3-57d5e7209de7",
+      "name": "Extract video id",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        200,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Convert the following YouTube transcript into a detailed, reader-friendly, 1-2 minute read blog post in the style of a Medium article. Use subheadings, and bullet points where appropriate.\\nPlease provide the following statistics at the beginning:\\n- Length of the youtube video: (Output this {{ $('YouTube Transcripts API').item.json.transcripts[$('YouTube Transcripts API').item.json.transcripts.length - 1].start }} in terms of minutes) \\n- Expected reading time of the blog: xx minutes\\n- Time saved: xx minutes\\nNote:\\n- Please remove \\\"#\\\"\\n- And use numbers to label the points\\n- Do NOT use markdown format\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Here's the transcript:{{ JSON.stringify($('YouTube Transcripts API').item.json.transcripts).replaceAll(\"\\\"\", \"\\\\\\\"\") }}\"\n    }\n  ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "e1a5dff7-68b2-47c0-ada8-e4a89b2076bb",
+      "name": "Get Transcript By Deepseek",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        140
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inputs\nconst inputData = items[0].json;\nconst blogContent = inputData.choices[0].message.content; // Assuming this is the response content\nconst costPerToken = {\n  input: 0.14 / 1000000,\n  output: 0.28 / 1000000,\n};\n\n\n\n// Calculate input and output tokens\nconst inputTokens = inputData.usage.prompt_tokens; // Approximate using character count\nconst outputTokens = inputData.usage.completion_tokens; // Approximate using character count\n\n// Total cost calculation\nconst totalCost = (inputTokens * costPerToken.input) + (outputTokens * costPerToken.output);\n\n// Split text into paragraphs\nconst paragraphs = blogContent.split('\\n\\n'); // Assuming paragraphs are separated by double line breaks\n\nconst newParagraphs = paragraphs.map((paragraph, index) => ({\n  json: {\n    paragraphNumber: index + 1,\n    paragraphContent: paragraph.trim(),\n  },\n}));\n\nnewParagraphs.push({\n    json: {\n      paragraphNumber: paragraphs.length + 1,\n      paragraphContent: `Total Cost: $${totalCost}`\n    },\n});\n\nreturn newParagraphs;\n"
+      },
+      "id": "044aa75c-1738-4c0f-a05f-dcdf8733e117",
+      "name": "Split + total cost",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram1').item.json.result.chat.id }}",
+        "text": "={{ $json.paragraphContent }}",
+        "additionalFields": {}
+      },
+      "id": "723bab96-8db4-4aff-99b0-10a04b129ea4",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        140
+      ],
+      "webhookId": "767168a4-9258-481e-a633-6c553e53f816"
+    },
+    {
+      "parameters": {
+        "content": "# テレグラムの指示からディープシーク経由でYoutubeをBlog投稿用に内容を変換",
+        "height": 413,
+        "width": 1543
+      },
+      "id": "4150331a-16a0-409d-aebb-10a0b258c371",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "92398ba1-a653-4ae5-a0f1-d3658bf165c8",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        40,
+        140
+      ],
+      "webhookId": "c1b3fe35-7941-4a96-bf69-999cfc51a81f"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "YouTube Transcripts API": {
+      "main": [
+        [
+          {
+            "node": "Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram1": {
+      "main": [
+        [
+          {
+            "node": "Get Transcript By Deepseek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract video id": {
+      "main": [
+        [
+          {
+            "node": "YouTube Transcripts API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transcript By Deepseek": {
+      "main": [
+        [
+          {
+            "node": "Split + total cost",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split + total cost": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Response": {
+      "main": [
+        []
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract video id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3e344184-dc55-4de3-8ee9-9861154072df",
+  "meta": {
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "3ukJZLZCIOCTcJX6",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

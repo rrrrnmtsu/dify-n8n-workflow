@@ -1,0 +1,196 @@
+{
+  "name": "【特典】企業ニュース調査・感情分析（ネガティブニュース早期発見）",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "9c0261e7-810f-4c35-8d99-6c054def0c87",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [
+        -160,
+        -40
+      ],
+      "webhookId": "f5961754-ee99-49c0-819d-a50ce2daa5a6",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "現在の日付と時刻を調べるには、このツールを使用します。",
+        "options": {}
+      },
+      "id": "ff71113f-c9f4-4307-aaaf-0b6cd3fe34cc",
+      "name": "get_current_date",
+      "type": "n8n-nodes-base.dateTimeTool",
+      "position": [
+        480,
+        220
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {
+          "language": "en"
+        }
+      },
+      "id": "d1b144d2-bf79-4caf-aff5-37ef3438403b",
+      "name": "web_search",
+      "type": "@n8n/n8n-nodes-langchain.toolSearXng",
+      "position": [
+        300,
+        220
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=あなたは金融調査アシスタントです。\n\nあなたのタスクは、指定された会社名または株式ティッカーの最新ニュースを見つけて要約することです。\n\n指示：\n\n1. まず、`get_current_date`ツールを使用して、過去7日間の日付範囲を決定します。\n\n2. `web_search`ツールを使用して、2つの別々のウェブ検索を実行します。1つは会社の正式名称を使用し、もう1つは株式ティッカーを使用します。検索クエリに日付範囲を使用して、過去1週間のみのニュースをフィルタリングします。\n\n3. 検索結果を確認した後、各ニュース記事の要約を提供します。要約には、記事で議論されている主要な出来事、発表、市場センチメントを含める必要があります。"
+        }
+      },
+      "id": "bc2219fd-48ca-4fda-9b81-2820794d7891",
+      "name": "Research Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        120,
+        -40
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User asked about: {{ $('When chat message received').item.json.chatInput }}\n\nLatest news:\n {{ $json.output }}\n",
+        "options": {
+          "systemMessage": "=---\nあなたは金融センチメントアナリストです。ニュースの要約が提供されます。あなたのタスクは、この要約を分析し、投資家の視点からその感情を分類することです。\n\n指示：\n1. すべてのニュースを読みます。\n2. 会社の財務実績、株価、または市場での評判に対する潜在的な影響に基づいて、全体的な感情（ポジティブ、ネガティブ、またはニュートラル）を判断します。\n3. ニュース要約の特定の点を参照した正当化を記述します。\n\n出力形式：\n感情：{sentiment_category}\n正当化：{Your detailed justification"
+        }
+      },
+      "id": "52f14d1a-eae9-4d90-81d8-17b959f7a633",
+      "name": "Sentiment Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        520,
+        -40
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "id": "462c806c-0092-4612-9e90-cab98b994f30",
+      "name": "Gemini 2.5 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        100,
+        220
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "z0rDtTfGlTsXrtBv",
+          "name": "Sasuu-Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## セットアップ手順\n\n1.  **言語モデル (LLM) の選択:** このワークフローはGoogle Geminiで事前設定されています。必要に応じて、エージェントに別のモデルを選択することもできます。\n2.  **LLM 認証情報の設定:** 選択したLLMの有効な認証情報が、n8nインスタンス内で正しく設定されていることを確認してください。\n3.  **SearXNG 接続の設定:** セルフホスト型SearXNGインスタンスに接続するようにノードを設定します。これにより、エージェントのウェブ検索機能が有効になります。\n4.  **リサーチエージェントのタスクの定義:** 「リサーチエージェント」のシステムプロンプトをカスタマイズして、その役割、指示、およびリサーチの実施方法を定義します。\n5.  **感情分析エージェントのタスクの定義:** 「感情分析エージェント」のシステムプロンプトを調整して、リサーチエージェントから提供された情報をどのように分析すべきかを指定します。\n6.  **ワークフローのテスト:** n8nキャンバス内にある組み込みのチャットインターフェースを使用してメッセージを送信し、エージェントが正しく機能していることを確認します。",
+        "height": 700,
+        "width": 1820
+      },
+      "id": "49b4a599-d696-4802-ae39-802102f9d28b",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -580,
+        -300
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "web_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Sentiment Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 2.5 Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sentiment Analysis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_current_date": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fd3d536b-53c8-49e9-bbd0-e05033ee4e2b",
+  "meta": {
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "OwuGXyqdKQpNx2Oj",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

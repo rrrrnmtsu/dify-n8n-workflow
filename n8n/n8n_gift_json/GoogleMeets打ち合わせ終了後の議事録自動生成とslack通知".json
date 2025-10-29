@@ -1,0 +1,232 @@
+{
+  "name": "【特典】GoogleMeets打ち合わせ終了後の議事録自動生成とslack通知",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -300,
+        0
+      ],
+      "id": "137f92ea-571b-4fca-8c8b-93b6ad23b902",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "6ajCrMhc3BYdK7X7",
+          "name": "Google Drive account (hiroki.sato@myuuu.io)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "3af5d28d-ed84-4498-acf8-20aa714483e7",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "5JHi44sHHcrSdTIQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=ユーザーの入力した会話内容について整理し議事録を作成してください。\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        160,
+        0
+      ],
+      "id": "7b96584a-88c0-49b4-8456-ae908b616d0e",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite-preview-06-17",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        260,
+        220
+      ],
+      "id": "4407bf49-9066-45c0-b977-aeedaef5670c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nuWqkzK0M2AUE1aN",
+          "name": "Google Gemini(PaLM) Api (Hiroki Sato)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U07MZ95ARLG",
+          "mode": "list",
+          "cachedResultName": "hirokiriko9"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        520,
+        0
+      ],
+      "id": "a41ff256-b561-478d-bf8f-809b0adaf075",
+      "name": "Slack",
+      "webhookId": "e11eb28b-98cf-413b-aadd-5e9271abcc82",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "RgZi3QSKN87XsVHF",
+          "name": "Slack account HIROKI SATO"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1mMIMTSZqupu0K2_sIcaiECeaKvlPrgWj",
+          "mode": "list",
+          "cachedResultName": "n8n Zoom Trigger",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1mMIMTSZqupu0K2_sIcaiECeaKvlPrgWj"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        0
+      ],
+      "id": "e2f5ce10-36a4-43be-9de0-051be3b8e390",
+      "name": "Zoom Meeting End Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "6ajCrMhc3BYdK7X7",
+          "name": "Google Drive account (hiroki.sato@myuuu.io)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom Meeting End Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "71fc4328-f1dd-43dd-b1bd-3cc8dda6b0fc",
+  "meta": {
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "VBU7XNX78ywGBYhl",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

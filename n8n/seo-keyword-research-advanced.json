@@ -1,0 +1,568 @@
+{
+  "name": "SEO キーワードリサーチ（Pro版 - ボリューム+競合分析）",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-pro",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 400]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SEO Keywords Research",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "read-keywords-pro",
+      "name": "Read Keywords",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-over-items-pro",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://google.com/complete/search?output=toolbar&gl={{ $json.Region || 'US' }}&q={{ encodeURIComponent($json.Keywords) }}",
+        "options": {}
+      },
+      "id": "autogenerate-keywords-pro",
+      "name": "Autogenerate Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "format-keywords-pro",
+      "name": "Format Keywords",
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "toplevel.CompleteSuggestion",
+        "options": {}
+      },
+      "id": "split-out-pro",
+      "name": "Split Out",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "keyword-assignment-pro",
+              "name": "keyword",
+              "type": "string",
+              "value": "={{ $json.suggestion?.data || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-keyword-pro",
+      "name": "Extract Keyword",
+      "type": "n8n-nodes-base.set",
+      "position": [1300, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "keyword"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aggregate-keywords-pro",
+      "name": "Aggregate Keywords",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "=https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"location_code\": {{ $('Loop Over Items').item.json.Region === 'JP' ? 2392 : 2840 }},\n    \"language_code\": \"{{ $('Loop Over Items').item.json.Region === 'JP' ? 'ja' : 'en' }}\",\n    \"keywords\": [\n      \"{{ $('Loop Over Items').item.json.Keywords }}\"\n    ]\n  }\n]",
+        "options": {}
+      },
+      "id": "get-search-volume-pro",
+      "name": "Get Search Volume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 200],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "YOUR_DATAFORSEO_CREDENTIAL_ID",
+          "name": "DataForSEO API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "search-volume-assignment",
+              "name": "search_volume",
+              "type": "number",
+              "value": "={{ $json.tasks?.[0]?.result?.[0]?.search_volume || 0 }}"
+            },
+            {
+              "id": "competition-assignment",
+              "name": "competition",
+              "type": "string",
+              "value": "={{ $json.tasks?.[0]?.result?.[0]?.competition || 'N/A' }}"
+            },
+            {
+              "id": "cpc-assignment",
+              "name": "cpc",
+              "type": "number",
+              "value": "={{ $json.tasks?.[0]?.result?.[0]?.cpc || 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-volume-data-pro",
+      "name": "Extract Volume Data",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 200],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "url": "=https://api.serpstack.com/search?access_key=YOUR_SERPSTACK_API_KEY&query={{ encodeURIComponent($('Loop Over Items').item.json.Keywords) }}&gl={{ $('Loop Over Items').item.json.Region || 'us' }}&num=10",
+        "options": {}
+      },
+      "id": "get-serp-results-pro",
+      "name": "Get SERP Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 600]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "top-urls-assignment",
+              "name": "top_10_urls",
+              "type": "array",
+              "value": "={{ $json.organic_results?.slice(0, 10).map(r => r.url) || [] }}"
+            },
+            {
+              "id": "top-domains-assignment",
+              "name": "top_domains",
+              "type": "array",
+              "value": "={{ $json.organic_results?.slice(0, 10).map(r => { try { return new URL(r.url).hostname } catch { return '' } }).filter(d => d) || [] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-serp-data-pro",
+      "name": "Extract SERP Data",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 600],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-all-data-pro",
+      "name": "Merge All Data",
+      "type": "n8n-nodes-base.merge",
+      "position": [1700, 400],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "row-number-final",
+              "name": "row_number",
+              "type": "string",
+              "value": "={{ $('Loop Over Items').item.json.row_number }}"
+            },
+            {
+              "id": "keywords-list-final",
+              "name": "keywords_list",
+              "type": "string",
+              "value": "={{ $('Aggregate Keywords').item.json.keyword.join(', ') }}"
+            },
+            {
+              "id": "search-volume-final",
+              "name": "search_volume",
+              "type": "number",
+              "value": "={{ $('Extract Volume Data').item.json.search_volume }}"
+            },
+            {
+              "id": "competition-final",
+              "name": "competition",
+              "type": "string",
+              "value": "={{ $('Extract Volume Data').item.json.competition }}"
+            },
+            {
+              "id": "cpc-final",
+              "name": "cpc",
+              "type": "number",
+              "value": "={{ $('Extract Volume Data').item.json.cpc }}"
+            },
+            {
+              "id": "top-domains-final",
+              "name": "top_domains",
+              "type": "string",
+              "value": "={{ $('Extract SERP Data').item.json.top_domains.slice(0, 5).join(', ') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-final-update-pro",
+      "name": "Prepare Final Update",
+      "type": "n8n-nodes-base.set",
+      "position": [1900, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SEO Keywords Research",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "List of keywords": "={{ $json.keywords_list }}",
+            "Search Volume": "={{ $json.search_volume }}",
+            "Competition": "={{ $json.competition }}",
+            "CPC": "={{ $json.cpc }}",
+            "Top 5 Domains": "={{ $json.top_domains }}"
+          },
+          "matchingColumns": ["row_number"],
+          "schema": [
+            {
+              "id": "Keywords",
+              "displayName": "Keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "List of keywords",
+              "displayName": "List of keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Region",
+              "displayName": "Region",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Search Volume",
+              "displayName": "Search Volume",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Competition",
+              "displayName": "Competition",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CPC",
+              "displayName": "CPC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Top 5 Domains",
+              "displayName": "Top 5 Domains",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-google-sheets-pro",
+      "name": "Update Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2100, 400]
+    },
+    {
+      "parameters": {
+        "content": "# SEO キーワードリサーチ Pro版\n\n## 機能\n✅ 関連キーワード自動生成\n✅ 検索ボリューム取得（DataForSEO）\n✅ 競合度・CPC取得\n✅ 上位サイト分析（SerpStack）\n✅ 日英両対応\n\n## 処理フロー\n各キーワードに対して：\n1. 関連キーワード生成\n2. 検索ボリューム取得\n3. SERP分析（上位10サイト）\n4. 全データをスプレッドシートに保存",
+        "height": 480,
+        "width": 2300,
+        "color": 5
+      },
+      "id": "sticky-note-pro",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [60, 100]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Keywords": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Autogenerate Keywords",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Search Volume",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get SERP Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autogenerate Keywords": {
+      "main": [
+        [
+          {
+            "node": "Format Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Keywords": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Extract Keyword",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Keyword": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Keywords": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Search Volume": {
+      "main": [
+        [
+          {
+            "node": "Extract Volume Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Volume Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get SERP Results": {
+      "main": [
+        [
+          {
+            "node": "Extract SERP Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SERP Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge All Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Update": {
+      "main": [
+        [
+          {
+            "node": "Update Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

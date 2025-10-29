@@ -1,0 +1,406 @@
+{
+  "name": "【特典】指定エリア周辺の営業リスト追加ワークフロー",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "93992239-29d9-44f9-954a-3d785b4d0993",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        60
+      ],
+      "webhookId": "91a4a184-2473-4f4e-ac45-fe5fb1daecdb"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "403b27f4-aa31-41e1-bf46-6f814f0fda37",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "z9zffCRFUJ3JUYb9",
+          "name": "Tennki_OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "7"
+      },
+      "id": "2a829cc4-1322-4635-885b-da1fa766d9fb",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "このボットは、リード獲得のためにGoogleマップからすべての連絡先情報をスクレイピングします。\n検索には「q」を入力し、「ll」には緯度経度を、「page」には現在のページ番号を指定します。",
+        "url": "https://google.serper.dev/maps",
+        "sendQuery": true,
+        "parametersQuery": {
+          "values": [
+            {
+              "name": "q"
+            },
+            {
+              "name": "ll"
+            },
+            {
+              "name": "page"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "X-API-KEY",
+              "valueProvider": "fieldValue"
+            }
+          ]
+        }
+      },
+      "id": "b44166ec-f80f-4a91-9257-09203c1325e2",
+      "name": "Map Searcher",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e26092f9-d6c4-497d-a20f-d472f28360d4",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        60,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "abc123XyZ789pQrStUvWxYz0123456789abcdefghijk",
+          "mode": "list",
+          "cachedResultName": "Map Searcher",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/abc123XyZ789pQrStUvWxYz0123456789abcdefghijk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/160mpEi2DqWmzU53jOyXCOti3is1fP16vkR-GBgbVycg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OpeningHours",
+              "displayName": "OpeningHours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Opening Hours",
+              "displayName": "Opening Hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1669127-49a6-4a0c-88b7-f1fb2c64a257",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        500,
+        640
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "store_to_google_sheet",
+        "description": "入力を解析してGoogleスプレッドシートに保存するためのツールです。",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bbnYWeeNWQxxqbF0"
+        }
+      },
+      "id": "1d403c4e-1c0a-4611-a8e5-1879ae1a9f65",
+      "name": "Store to Google Sheet",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: { response: \"ok\" } }"
+      },
+      "id": "57a18442-3d38-459d-8a4e-0520693755fb",
+      "name": "Return response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return JSON.parse($input.all()[0].json.query);"
+      },
+      "id": "39f00b45-bb84-445f-a689-246d56f49075",
+      "name": "Parse content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "あなたは、Googleマップの「Map Searcher」またはウェブサイトから、連絡先情報を探すリサーチエージェントです。検索が完了したら、人間が読みやすいリスト形式で出力を構成してください。\n\n検索が終わったら、結果を「Google Sheets」に入力してください。このツールを呼び出す際は、以下のJSON形式で1回の呼び出しで行う必要があります：\n[\n  {\n    \"json\": {\n      \"Address\": xxx,\n      \"Phone\": xxx,\n      \"Website\": xxx,\n      \"Rating\": xxx,\n      \"Opening\" Hours: xxx,\n      \"Email\": xxx\n    }\n  },\n  {\n    \"json\": {\n      \"Address\": xxx,\n      \"Phone\": xxx,\n      \"Website\": xxx,\n      \"Rating\": xxx,\n      \"Opening\" Hours: xxx,\n      \"Email\": xxx\n    }\n  },\n  ...\n]\n"
+        }
+      },
+      "id": "16f67249-ff6b-43c3-a415-865492769798",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        300,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# AIGoogleマップサーチエージェント\n",
+        "height": 531.3518006672114,
+        "width": 909.9268172509238
+      },
+      "id": "66dec1b1-e8a4-4fd4-bea4-81a683afa31e",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Googleスプレッドシートにデータ登録するワークフロー\n",
+        "height": 261,
+        "width": 993,
+        "color": 4
+      },
+      "id": "d3af1972-f955-4807-bea3-9254a121701c",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        560
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Searcher": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store to Google Sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse content": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "380ad42f-3223-4901-882e-159357e23f36",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "0By06zLtkdjiNJAe",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}

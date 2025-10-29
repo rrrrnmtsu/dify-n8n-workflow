@@ -1,0 +1,607 @@
+{
+  "name": "【特典】Google検索から営業リストデータ収集",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "03579a14-5c5f-4f91-b9aa-8006120c6b3a",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://r.jina.ai/{{ $json.formattedUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fbe0b8a4-cd07-41ba-9e6f-d360724577d0",
+      "name": "Get Website Detail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        -60
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = items.map((item) => {\n  const content = item?.json?.choices[0]?.message?.content;\n  try {\n    const contentJson = JSON.parse(content);\n    item.json.choices[0].message.content = contentJson;\n  } catch (error) {\n    console.log(\"Error parsing content to JSON:\", error);\n  }\n  return item;\n});\nreturn updatedItems;\n"
+      },
+      "id": "e9d59b0e-7c21-40d5-9c93-e2142cd4b279",
+      "name": "Convert to JSON Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5dd49fba-83da-4a1a-b8e4-770451d0b186",
+              "name": "Search Terms",
+              "value": "Fitness Center",
+              "type": "string"
+            },
+            {
+              "id": "58b1bc61-5d6c-4714-b33e-ee184a6f7ff3",
+              "name": "Site Filter",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "6c92ecd0-626f-4e31-a4fc-9ea1f11e2318",
+              "name": "Type",
+              "value": "email",
+              "type": "string"
+            },
+            {
+              "id": "d228ebaf-7510-4d42-ab8d-874d451ab838",
+              "name": "Language",
+              "value": "ja",
+              "type": "string"
+            },
+            {
+              "id": "4ce297fd-7eae-43a7-b02a-5b916060d1e7",
+              "name": "Location",
+              "value": "countryJPN",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "168cfcb4-936f-4585-b673-f9b50aafbe79",
+      "name": "Category",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "id": "1ea9ee52-c379-408e-8731-4733a2be792b",
+      "name": "Split Out",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Google 検索データ収集",
+        "height": 558,
+        "width": 2048,
+        "color": 7
+      },
+      "id": "8c98748c-601e-4100-ad16-3f126d33104e",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const startIndexes = [];\nfor (let i = 1; i <= 11; i += 10) {\n  startIndexes.push(i);\n}\nreturn { startIndexes };\n"
+      },
+      "id": "6946b4e4-cb23-4854-976e-ac192f3a4acc",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "startIndexes",
+        "options": {}
+      },
+      "id": "21457058-2b3a-47c3-92b3-40f9f816a280",
+      "name": "Split Out1",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "0e781aa5-b660-4a67-b27f-657816af18ea",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        880,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://customsearch.googleapis.com/customsearch/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Category').item.json['Search Terms'] }} {{ $('Category').item.json.Type }} {{ $('Category').item.json['Site Filter'] }}"
+            },
+            {
+              "name": "cx"
+            },
+            {
+              "name": "start",
+              "value": "={{ $json.startIndexes }}"
+            },
+            {
+              "name": "lr",
+              "value": "={{ $('Category').item.json.Language }}"
+            },
+            {
+              "name": "gl",
+              "value": "={{ $('Category').item.json.Location }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e3202223-369a-410b-a5b8-6c36df4ced0d",
+      "name": "Google Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rsv9PRhQB3olBMOG3PcwX2zyZBTbU20qIlLSQP3U2eU",
+          "mode": "list",
+          "cachedResultName": "Company Scraper",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rsv9PRhQB3olBMOG3PcwX2zyZBTbU20qIlLSQP3U2eU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1246120630,
+          "mode": "list",
+          "cachedResultName": "Fitness center-us",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rsv9PRhQB3olBMOG3PcwX2zyZBTbU20qIlLSQP3U2eU/edit#gid=1246120630"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company Name": "={{ $json.choices[0].message.content['Company Name'] }}",
+            "Company Category": "={{ $json.choices[0].message.content['Company Category'] }}",
+            "Company Number": "={{ $json.choices[0].message.content['Contact Number'] }}",
+            "Company Address": "={{ $json.choices[0].message.content['Company Address'] }}",
+            "Company Email": "={{ $json.choices[0].message.content['Company Email'] }}",
+            "Company Logo URL": "={{ $json.choices[0].message.content['Company Logo URL'] }}",
+            "Company Summary": "={{ $json.choices[0].message.content['Company Summary'] }}",
+            "Company Website": "={{ $json.choices[0].message.content['Company URL'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Category",
+              "displayName": "Company Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Number",
+              "displayName": "Company Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Address",
+              "displayName": "Company Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Email",
+              "displayName": "Company Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Summary",
+              "displayName": "Company Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company Logo URL",
+              "displayName": "Company Logo URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Logo",
+              "displayName": "Company Logo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Website",
+              "displayName": "Company Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "125b9a05-0262-4e88-adba-92fe02443e44",
+      "name": "Save Records",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1680,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G01wCSPb6jtdqH14",
+          "name": "Tennki_Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f7ae58d8-79a6-452e-8f2f-b3f93aa8e4b8",
+              "leftValue": "={{ $json.choices[0].message.content['Content Relevant'] }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8584247e-d3ce-4e19-8482-5ce68b40323d",
+      "name": "If Relevant",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "89474f66-c538-4fd1-9a42-0d154b1e9e92",
+              "leftValue": "={{ $json.choices[0].message.content['Contact Number'] }}",
+              "rightValue": "N/A",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "aa70dc74-13e5-4afc-97f0-df9db3127362",
+              "leftValue": "={{ $json.choices[0].message.content['Company Email'] }}",
+              "rightValue": "N/A",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "acfd6d61-3d78-4b2c-8d40-71260056ce6e",
+      "name": "If Email or Number",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1480,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"response_format\": {\n      \"type\": \"json_object\"\n  },\n  \"messages\": [\n          {\"role\": \"system\", \"content\": {{\nJSON.stringify(`You are a web scraper analysis. Try to format the following information into the following format. If the JSON field not existed, return \"N/A\" of the field.\n\n*** The contact number in 12124567890 format\n*** If it doesnt have sufficient contact detail, \"Content Relevant\" retrun false\n*** If it is not related to $('Category').item.json['Search Terms'], \"Content Relevant\" retrun false\n\nEXAMPLE JSON OUTPUT:\n{\n    \"Company Name\": \"Proxa\",\n    \"Company Category\": \"Food and Drink\",\n    \"Contact Number\": \"12124567890\",\n    \"Company Address\": \"RM 2305, Trend Centre, Chai Wan\",\n    \"Company Email\": \"N/A\",\n    \"Company Summary\": \"Proxa is a restaurant in Hong Kong\",\n    \"Company Logo URL\": \"https://proxa.com/logo.png\",\n    \"Company URL\": \"N/A\",\n    \"Content Relevant\": false,\n}\n`)\n}}},\n          {\"role\": \"user\", \"content\": {{ JSON.stringify($json.data) }}}\n        ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "5ca5b3a3-e582-4973-9d15-910816af8f15",
+      "name": "Convert to JSON string",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        180
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8lai0ya0EerHHQD5",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Website Detail": {
+      "main": [
+        [
+          {
+            "node": "Convert to JSON string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to JSON Object": {
+      "main": [
+        [
+          {
+            "node": "If Relevant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Get Website Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Google Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Search": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Relevant": {
+      "main": [
+        [
+          {
+            "node": "If Email or Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Email or Number": {
+      "main": [
+        [
+          {
+            "node": "Save Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Records": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to JSON string": {
+      "main": [
+        [
+          {
+            "node": "Convert to JSON Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "883a3436-51ba-4a93-9b1c-60bc9f822c0d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "836d4da92b0efe6a857e1d16a436635b4065381482ec53ff37c84b65f92a3538"
+  },
+  "id": "JiGuyHhLfKnF7ERQ",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T06:08:39.818Z",
+      "updatedAt": "2025-07-06T06:08:39.818Z",
+      "id": "IlXIPmxMtgCNxP4H",
+      "name": "特典"
+    }
+  ]
+}
