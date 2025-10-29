@@ -203,6 +203,7 @@
       "parameters": {
         "mode": "combine",
         "combineBy": "combineByPosition",
+        "numberOfInputs": 3,
         "options": {}
       },
       "id": "merge-all-data-pro",

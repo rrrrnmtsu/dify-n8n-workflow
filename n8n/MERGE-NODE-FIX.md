@@ -38,11 +38,15 @@ Merge ノード v3では、以下の3種類の`Combine By`オプションがあ�
    - Mode: `Combine`
    - Combine By: **`Position`** を選択 ← 重要
 
-3. **Output 設定**
+3. **Number of Inputs を設定**
+   - **Number of Inputs**: `3` を選択
+   - これで3つの入力（Aggregate Keywords、Extract Volume Data、Extract SERP Data）をマージします
+
+4. **Output 設定**
    - Output: `Input 1 + Input 2 (merged fields)`
    - これにより、すべてのフィールドが統合されます
 
-4. **保存**
+5. **保存**
    - 「Save」をクリック
 
 **メリット**:
@@ -160,6 +164,7 @@ Input 1に2アイテム、Input 2に2アイテムがある場合、4つの組み
   "parameters": {
     "mode": "combine",
     "combineBy": "combineByPosition",
+    "numberOfInputs": 3,
     "options": {}
   },
   "id": "merge-all-data-pro",
@@ -169,6 +174,8 @@ Input 1に2アイテム、Input 2に2アイテムがある場合、4つの組み
   "position": [1700, 400]
 }
 ```
+
+**重要**: `numberOfInputs: 3` を指定することで、3つの入力をマージできます。
 
 ### オプション2: Matching Fields を使用
 
@@ -218,7 +225,11 @@ Input 1に2アイテム、Input 2に2アイテムがある場合、4つの組み
 
 1. **Mode**: `Combine` を選択
 2. **Combine By**: `Position` を選択
-3. **Output**: `Input 1 + Input 2 (merged fields)` を選択
+3. **Number of Inputs**: `3` を選択 ← 重要
+   - プルダウンで3を選択すると、3つの入力ポートが表示されます
+4. **Output**: `Input 1 + Input 2 (merged fields)` を選択
+
+**注意**: Number of Inputsを3に設定しないと、3つ目の入力（Extract SERP Data）が接続できません。
 
 ### オプション2: Matching Fields
 
@@ -447,16 +458,25 @@ Loop Over Items
 
 ### 修正チェックリスト
 
-- [x] Merge All Data ノードを開く
-- [x] Mode: `Combine` に設定
-- [x] Combine By: `Merge by position` に設定
-- [x] 3つの入力が正しく接続されている
+- [ ] Merge All Data ノードを開く
+- [ ] Mode: `Combine` に設定
+- [ ] Combine By: `Position` に設定
+- [ ] **Number of Inputs: `3` に設定** ← 重要！
+- [ ] Output: `Input 1 + Input 2 (merged fields)` に設定
+- [ ] 3つの入力が正しく接続されている
   - Input 1: Aggregate Keywords
   - Input 2: Extract Volume Data
   - Input 3: Extract SERP Data
-- [x] 出力が Prepare Final Update に接続されている
-- [x] 保存して実行
-- [x] エラーが解消されている
+- [ ] 出力が Prepare Final Update に接続されている
+- [ ] 保存して実行
+- [ ] エラーが解消されている
+
+### よくある間違い
+
+❌ **間違い**: Number of Inputsを設定せずに保存
+→ 3つ目の入力が接続できない
+
+✅ **正しい**: Number of Inputsを`3`に設定してから接続
 
 ---
 
