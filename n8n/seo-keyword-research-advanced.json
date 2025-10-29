@@ -223,6 +223,12 @@
               "value": "={{ $('Loop Over Items').item.json.row_number }}"
             },
             {
+              "id": "keywords-final",
+              "name": "Keywords",
+              "type": "string",
+              "value": "={{ $('Loop Over Items').item.json.Keywords }}"
+            },
+            {
               "id": "keywords-list-final",
               "name": "keywords_list",
               "type": "string",
@@ -279,6 +285,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "row_number": "={{ $json.row_number }}",
+            "Keywords": "={{ $json.Keywords }}",
             "List of keywords": "={{ $json.keywords_list }}",
             "Search Volume": "={{ $json.search_volume }}",
             "Competition": "={{ $json.competition }}",
